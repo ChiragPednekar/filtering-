@@ -1,0 +1,83 @@
+import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+
+const url = import.meta.env.VITE_SUPABASE_URL as string | undefined
+const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined
+const serviceKey = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY as string | undefined
+const syncSecret = import.meta.env.VITE_SYNC_SECRET as string | undefined
+
+/** Why config is missing, or null when it is fine. Surfaced by <ConfigError/>. */
+export const configError: string | null = (() => {
+  if (!url) return 'VITE_SUPABASE_URL is not set.'
+  if (!anonKey) return 'VITE_SUPABASE_ANON_KEY is not set.'
+  try {
+    new URL(url)
+  } catch {
+    return `VITE_SUPABASE_URL is not a valid URL: ${url}`
+  }
+  return null
+})()
+
+const noAuth = { auth: { persistSession: false, autoRefreshToken: false } }
+
+/**
+ * Read client. Uses the publishable/anon key, which RLS restricts to SELECT on
+ * `creators`. Safe to ship inside the app bundle.
+ *
+ * A single shared instance -- creating clients per component leaks connections
+ * and re-runs auth setup on every render.
+ */
+export const supabase: SupabaseClient = createClient(url ?? 'http://invalid.local', anonKey ?? 'missing', noAuth)
+
+/**
+ * Write client, used only by the upload path. The service role key bypasses RLS,
+ * so this is null unless the key is configured -- letting the app run read-only
+ * rather than failing at startup.
+ */
+export const supabaseAdmin: SupabaseClient | null =
+  url && serviceKey ? createClient(url, serviceKey, noAuth) : null
+
+export const canWrite = supabaseAdmin !== null
+
+/** Turns a Supabase/network failure into something worth showing a user. */
+export function describeError(err: unknown): string {
+  if (!err) return 'Unknown error.'
+  if (typeof err === 'string') return err
+  const e = err as { message?: string; details?: string; hint?: string; code?: string }
+  if (e.code === '42501') {
+    return 'Permission denied by the database. The key in use lacks access to this table.'
+  }
+  if (e.message?.includes('Failed to fetch') || e.message?.includes('NetworkError')) {
+    return 'Could not reach Supabase. Check your network connection and the project URL.'
+  }
+  return [e.message, e.details, e.hint].filter(Boolean).join(' — ') || 'Unknown error.'
+}
+
+
+/**
+ * Pulls the Google Sheet into the database on demand via the sync-sheet Edge
+ * Function. A pg_cron job runs the same sync every 15 minutes and the sheet's Apps
+ * Script trigger fires it on edit, so this is only for "I changed it just now".
+ */
+export const canSync = Boolean(url && syncSecret)
+
+export interface SyncResult {
+  status: string
+  rows_upserted?: number
+  rows_deleted?: number
+  duration_ms?: number
+  error?: string
+}
+
+export async function runSheetSync(): Promise<SyncResult> {
+  if (!url || !syncSecret) {
+    throw new Error('Set VITE_SYNC_SECRET to enable Sync now.')
+  }
+  const res = await fetch(`${url.replace(/\/$/, '')}/functions/v1/sync-sheet`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-sync-secret': syncSecret },
+    body: JSON.stringify({ trigger: 'app-button' }),
+  })
+  const body = (await res.json().catch(() => ({}))) as SyncResult
+  if (!res.ok) throw new Error(body.error ?? `Sync failed (HTTP ${res.status})`)
+  return body
+}

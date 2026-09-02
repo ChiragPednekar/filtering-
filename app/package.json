@@ -1,0 +1,41 @@
+{
+  "name": "creators-explorer",
+  "version": "1.0.0",
+  "description": "Internal desktop tool for filtering and uploading influencer/creator data",
+  "main": "electron/main.cjs",
+  "type": "module",
+  "scripts": {
+    "dev": "concurrently -k \"vite\" \"wait-on tcp:5173 && electron .\"",
+    "dev:web": "vite",
+    "build": "vite build",
+    "test:upload": "esbuild src/__test__/uploadPipeline.test.ts --bundle --platform=node --format=cjs --define:import.meta.env='{}' --outfile=node_modules/.tmp-uptest.cjs --log-level=error && node node_modules/.tmp-uptest.cjs",
+    "preview": "vite preview",
+    "start": "npm run build && electron .",
+    "dist": "npm run build && electron-builder"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.45.4",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "xlsx": "^0.18.5"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.11",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.2",
+    "autoprefixer": "^10.4.20",
+    "concurrently": "^9.0.1",
+    "electron": "^32.1.2",
+    "electron-builder": "^25.1.8",
+    "postcss": "^8.4.47",
+    "tailwindcss": "^3.4.13",
+    "typescript": "^5.6.2",
+    "vite": "^5.4.8",
+    "wait-on": "^8.0.1"
+  },
+  "build": {
+    "appId": "com.internal.creators-explorer",
+    "files": ["dist/**/*", "electron/**/*"],
+    "directories": { "output": "release" }
+  }
+}
