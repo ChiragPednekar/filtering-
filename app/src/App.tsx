@@ -12,13 +12,16 @@ const UploadModal = lazy(() =>
 const AddCreatorModal = lazy(() =>
   import('./components/AddCreatorModal').then((m) => ({ default: m.AddCreatorModal })),
 )
+const EditCreatorModal = lazy(() =>
+  import('./components/EditCreatorModal').then((m) => ({ default: m.EditCreatorModal })),
+)
 import { useCreators } from './hooks/useCreators'
 import { useTheme, type Theme } from './hooks/useTheme'
 import { useFilterOptions } from './hooks/useFilterOptions'
 import { canSync, canWrite, configError, runSheetSync } from './lib/supabaseClient'
 import { fetchAllForExport, type SortKey } from './services/creatorsService'
 import { downloadBlob, openPrintablePdf, timestamp, toCsv } from './lib/export'
-import { EMPTY_FILTERS, type Filters } from './types'
+import { EMPTY_FILTERS, type Creator, type Filters } from './types'
 
 /** How many filters are active, for the Clear button and the empty state. */
 function countActive(f: Filters): number {
@@ -41,6 +44,7 @@ export default function App() {
   const [sortAsc, setSortAsc] = useState(false)
   const [uploadOpen, setUploadOpen] = useState(false)
   const [addOpen, setAddOpen] = useState(false)
+  const [editing, setEditing] = useState<Creator | null>(null)
   const [syncing, setSyncing] = useState(false)
   const [syncNote, setSyncNote] = useState<string | null>(null)
   const [exporting, setExporting] = useState<null | 'csv' | 'pdf'>(null)
@@ -290,6 +294,7 @@ export default function App() {
                   onRetry={reload}
                   hasFilters={activeCount > 0}
                   onClearFilters={clearFilters}
+                  onEdit={setEditing}
                 />
               </div>
               <Pagination
@@ -306,6 +311,19 @@ export default function App() {
           )}
         </main>
       </div>
+
+      {editing && (
+        <Suspense fallback={null}>
+          <EditCreatorModal
+            creator={editing}
+            onClose={() => setEditing(null)}
+            onSaved={() => {
+              void options.reload()
+              reload()
+            }}
+          />
+        </Suspense>
+      )}
 
       {addOpen && (
         <Suspense fallback={null}>

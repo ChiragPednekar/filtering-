@@ -4,6 +4,7 @@ import { EmptyState, ErrorState, TableSkeleton, formatMoney, formatNumber } from
 
 interface Props {
   rows: Creator[]
+  onEdit: (row: Creator) => void
   loading: boolean
   error: string | null
   sortKey: SortKey
@@ -30,6 +31,7 @@ const displayLink = (url: string) => url.replace(/^https?:\/\//, '')
 
 export function ResultsTable({
   rows, loading, error, sortKey, sortAsc, onSort, onRetry, hasFilters, onClearFilters,
+  onEdit,
 }: Props) {
   if (error) {
     return <ErrorState title="Could not load creators" message={error} onRetry={onRetry} />
@@ -92,12 +94,18 @@ export function ResultsTable({
             const audience = row.followers ?? row.subscribers
             const audienceLabel = row.followers !== null ? 'followers' : row.subscribers !== null ? 'subs' : ''
             return (
-              <tr key={row.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/60">
+              <tr
+                key={row.id}
+                onClick={() => onEdit(row)}
+                title="Click to edit"
+                className="cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800/60"
+              >
                 <td className="px-4 py-2.5">
                   <a
                     href={row.channel_link}
                     target="_blank"
                     rel="noreferrer noopener"
+                    onClick={(e) => e.stopPropagation()}
                     className="font-medium text-blue-700 dark:text-blue-400 hover:underline"
                     title={row.channel_link}
                   >
@@ -105,6 +113,14 @@ export function ResultsTable({
                   </a>
                   <div className="truncate text-xs text-slate-400" title={row.channel_link}>
                     {row.mail ?? displayLink(row.channel_link)}
+                    {row.overrides && Object.keys(row.overrides).length > 0 && (
+                      <span
+                        title="Some fields were edited here and no longer follow the sheet"
+                        className="ml-1.5 rounded bg-blue-50 px-1 py-0.5 text-[10px] font-medium text-blue-700 dark:bg-blue-950 dark:text-blue-300"
+                      >
+                        edited
+                      </span>
+                    )}
                   </div>
                 </td>
                 <td className="px-4 py-2.5">

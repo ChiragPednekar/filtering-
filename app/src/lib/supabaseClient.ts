@@ -188,3 +188,35 @@ export async function addCreator(creator: NewCreator): Promise<AddCreatorResult>
   if (!res.ok) throw new Error(body.error ?? `Could not add the creator (HTTP ${res.status})`)
   return body
 }
+
+
+/** Fields the app lets you edit. Anything not listed keeps tracking the sheet. */
+export const EDITABLE_FIELDS = [
+  'mail', 'category', 'country', 'language', 'platform',
+  'followers', 'subscribers', 'deliverables', 'commercials',
+] as const
+export type EditableField = (typeof EDITABLE_FIELDS)[number]
+
+/**
+ * Saves an edit as a per-field override.
+ *
+ * The sheet stays the source of truth for everything you have not touched; an edited
+ * field stops following it. Pass null for a field to drop the override and let the
+ * sheet's value take over again.
+ */
+export async function updateCreator(
+  id: number,
+  patch: Partial<Record<EditableField, string | null>>,
+): Promise<{ status: string; creator?: Record<string, unknown>; error?: string }> {
+  if (!url || !syncSecret) {
+    throw new Error('Editing needs VITE_SYNC_SECRET. See DEPLOY.md.')
+  }
+  const res = await fetch(`${url.replace(/\/$/, '')}/functions/v1/sync-sheet`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-sync-secret': syncSecret },
+    body: JSON.stringify({ action: 'update_creator', id, patch }),
+  })
+  const body = await res.json().catch(() => ({}))
+  if (!res.ok) throw new Error(body.error ?? `Could not save (HTTP ${res.status})`)
+  return body
+}

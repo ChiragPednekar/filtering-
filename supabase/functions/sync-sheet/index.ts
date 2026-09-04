@@ -317,6 +317,83 @@ Deno.serve(async (req) => {
     })
   }
 
+  // Editing one creator. Stored as an override so the next sheet sync -- a minute
+  // away -- updates every other field but leaves this one alone.
+  if (body?.action === 'update_creator') {
+    const id = Number(body?.id)
+    const patch = (body?.patch ?? {}) as Record<string, string>
+    if (!Number.isFinite(id)) return json({ error: 'A creator id is required.' }, 400)
+
+    const { data: existing, error: readErr } = await db
+      .from('creators').select('id,overrides').eq('id', id).single()
+    if (readErr || !existing) return json({ error: 'That creator no longer exists.' }, 404)
+
+    const overrides: Record<string, unknown> = { ...(existing.overrides ?? {}) }
+
+    // The fee is one field to the user but five stored keys, so clearing it has to
+    // drop all of them -- otherwise the derived keys linger and the row keeps showing
+    // as edited when nothing effectively is.
+    const GROUPED: Record<string, string[]> = {
+      commercials: [
+        'commercials', 'commercials_amount', 'commercials_currency',
+        'commercials_amount_native', 'commercials_currency_native',
+      ],
+    }
+
+    // null removes an override, letting the sheet's value take over again.
+    for (const [field, raw] of Object.entries(patch)) {
+      if (raw === null) {
+        for (const k of GROUPED[field] ?? [field]) delete overrides[k]
+        continue
+      }
+      const value = String(raw).trim()
+
+      switch (field) {
+        case 'category':
+          overrides.category = parseCategories(value)
+          break
+        case 'subscribers':
+        case 'followers': {
+          const { value: n } = parseAudience(value)
+          if (n === null && value) {
+            return json({ error: `Could not read "${value}" as a follower count.` }, 400)
+          }
+          overrides[field] = n === null ? '' : String(n)
+          break
+        }
+        case 'commercials': {
+          const money = parseMoney(value)
+          const fx = await loadFx(db)
+          const rate = money.currency
+            ? (fx.usdPerUnit[money.currency.toUpperCase()] ?? null) : null
+          const usd = money.amount !== null && rate !== null
+            ? Math.round(money.amount * rate * 100) / 100 : null
+          overrides.commercials = value
+          overrides.commercials_amount = usd ?? money.amount ?? ''
+          overrides.commercials_currency = usd !== null ? 'USD' : (money.currency ?? '')
+          overrides.commercials_amount_native = money.amount ?? ''
+          overrides.commercials_currency_native = money.currency ?? ''
+          break
+        }
+        default:
+          overrides[field] = value
+      }
+    }
+
+    const { error } = await db.from('creators')
+      .update({ overrides, edited_at: new Date().toISOString() })
+      .eq('id', id)
+    if (error) return json({ error: error.message }, 400)
+
+    const { data: after } = await db.from('creators')
+      .select('id,creator_name,mail,category,country,language,platform,subscribers,' +
+              'followers,deliverables,commercials,commercials_amount,' +
+              'commercials_currency,overrides,edited_at')
+      .eq('id', id).single()
+
+    return json({ status: 'ok', creator: after })
+  }
+
   // Normal path: sync every enabled sheet, or one named brand.
   let query = db.from('sheet_sources').select('brand,sheet_id').eq('enabled', true)
   if (onlyBrand) query = query.eq('brand', onlyBrand)

@@ -132,3 +132,15 @@ create extension pg_net with schema extensions;
 -- would be deleted within a minute: the prune removes any row in a synced brand that
 -- the latest run did not stamp, and a hand-added row never is. Flagging them keeps
 -- them safe under any brand, so a manual creator can sit alongside a brand's sheet rows.
+
+-- Applied as `field_level_edit_overrides` + `fix_override_clear`.
+-- Editing a creator in the app must survive the sync a minute later, or the edit
+-- silently vanishes. Each edited field is kept in `overrides` and re-applied by a
+-- BEFORE UPDATE trigger, so no code path -- Edge Function, ETL, manual SQL -- can
+-- forget to honour it, and unedited fields keep tracking the sheet.
+--
+-- The first version read the overrides as coalesce(nullif(new.overrides,'{}'),
+-- old.overrides, '{}') to stop a sync wiping edits. That made clearing the last
+-- override impossible: '{}' fell back to old.overrides, so "revert" restored the very
+-- edit it was removing. The fallback was never needed -- a sync's payload does not
+-- mention `overrides`, and Postgres leaves unlisted columns at their old value.

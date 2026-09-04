@@ -28,6 +28,9 @@ export interface Creator {
   brand: string
   /** Typed into the app rather than read from a sheet; never pruned by a sync. */
   manually_added: boolean
+  /** Fields edited in the app. These stop following the sheet. */
+  overrides: Record<string, unknown> | null
+  edited_at: string | null
   raw_data: Record<string, unknown> | null
 }
 
