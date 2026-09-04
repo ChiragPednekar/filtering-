@@ -26,11 +26,19 @@ An Edge Function (`sync-sheet`) fetches the sheet, cleans it with the same rules
 | Trigger | Latency | Needs setup |
 |---|---|---|
 | **Apps Script in the sheet** — fires on every edit | ~15 seconds | Yes, one-time (below) |
-| **pg_cron** — every 15 minutes | ≤ 15 minutes | Already running |
+| **pg_cron** — every minute | ≤ 1 minute | Already running |
 | **"Sync now"** button in the desktop app | immediate | Already working |
 
-The cron job is the safety net. Even if the Apps Script is removed, unauthorised, or
-Google has an outage, the database is never more than 15 minutes stale.
+The cron job runs every minute, so the database is never more than about a minute
+behind the sheet even with no Apps Script installed at all. It is also the safety net:
+if the Apps Script is removed or unauthorised, nothing breaks.
+
+A scheduled tick is skipped while a previous run is still in flight. Runs average ~4.5s
+and the slowest on record is 17.65s, so overlap is unlikely -- but without the guard a
+newer run's prune could delete rows an older, slower run had not yet re-stamped.
+
+At this cadence the sync runs ~1,440 times a day. A nightly job keeps 7 days of
+successful `sync_log` rows so the table cannot grow without bound; errors are kept.
 
 **Deletions mirror the sheet.** Remove a creator from a synced tab and it is removed
 from Supabase on the next sync. Rows added through the app's Upload feature under a

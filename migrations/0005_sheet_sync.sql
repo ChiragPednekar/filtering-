@@ -109,3 +109,11 @@ create extension pg_net with schema extensions;
 -- reordering, fee cells holding deliverables text) live in the Edge Function and
 -- etl.py, not in SQL -- see supabase/functions/sync-sheet/repair.ts and the matching
 -- helpers in etl.py. They are applied on every sync.
+
+-- Applied as `every_minute_sync_with_overlap_guard`.
+-- Cadence changed from */15 to every minute: freshness matters more than the cost of
+-- re-reading an unchanged sheet. trigger_sheet_sync() now skips a scheduled tick while
+-- a run is still in flight (started under 5 minutes ago and unfinished), which removes
+-- the race where a newer run's prune could delete rows an older, slower run had not
+-- yet re-stamped. Also adds a nightly prune keeping 7 days of successful sync_log rows;
+-- errors are kept indefinitely.
