@@ -17,7 +17,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2'
 import { readWorkbook } from './sheet.ts'
 
 const SHEET_ID = Deno.env.get('SHEET_ID') ??
-  '1wcqZydjxkeCS5qg16kd6c-5tVQc9jc62pgWKTsuhhog'
+  '1jlfzZA0bIewRwYcWBApxPpbpWVJHJ97op3UmyGvV4jw'
 const EXPORT_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=xlsx`
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!

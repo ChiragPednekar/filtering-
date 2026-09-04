@@ -30,7 +30,7 @@ import openpyxl
 # --------------------------------------------------------------------------
 
 SHEET_ID = os.environ.get(
-    "SHEET_ID", "1wcqZydjxkeCS5qg16kd6c-5tVQc9jc62pgWKTsuhhog"
+    "SHEET_ID", "1jlfzZA0bIewRwYcWBApxPpbpWVJHJ97op3UmyGvV4jw"
 )
 EXPORT_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=xlsx"
 

@@ -2,6 +2,22 @@
 
 Your client edits the Google Sheet; Supabase follows. Nothing runs on your laptop.
 
+**Source sheet:** `1jlfzZA0bIewRwYcWBApxPpbpWVJHJ97op3UmyGvV4jw`
+(<https://docs.google.com/spreadsheets/d/1jlfzZA0bIewRwYcWBApxPpbpWVJHJ97op3UmyGvV4jw/edit>)
+
+Only one sheet can drive the database, because deletions mirror it. Whichever sheet
+this ID points at is the source of truth — edits to any other copy are invisible.
+To repoint it, set the `SHEET_ID` secret on the Edge Function and redeploy:
+
+```bash
+supabase secrets set SHEET_ID=<new id> --project-ref akqhuzgekjsvrizysfmp
+supabase functions deploy sync-sheet --project-ref akqhuzgekjsvrizysfmp --no-verify-jwt
+```
+
+Before switching sources, diff the two first — a copy is often a snapshot that has
+drifted, and syncing it silently reverts whatever changed since. `etl.py --local`
+against each file and comparing the output is enough to catch it.
+
 ## How it works
 
 An Edge Function (`sync-sheet`) fetches the sheet, cleans it with the same rules as
@@ -19,6 +35,17 @@ Google has an outage, the database is never more than 15 minutes stale.
 **Deletions mirror the sheet.** Remove a creator from a synced tab and it is removed
 from Supabase on the next sync. Rows added through the app's Upload feature under a
 different `source_sheet` are never touched.
+
+## You do not need to own the sheet
+
+Editor access is enough. Google's docs are explicit that "installable triggers always
+run under the account of the person who created them", and an installable onChange
+trigger fires when *any* user edits the sheet. So an editor can install the trigger,
+and it will catch the owner's edits, running under the editor's authorisation.
+
+The one caveat: a container-bound script belongs to the *file owner*, so on a sheet you
+do not own, the owner can change the script's code afterwards -- and it would then run
+with your authorisation. On a sheet you own, that concern disappears.
 
 ## One-time setup for real-time (~3 minutes)
 
