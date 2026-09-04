@@ -853,7 +853,7 @@ def dedupe(rows):
 # Load
 # --------------------------------------------------------------------------
 
-def upsert(rows, batch=250):
+def upsert(rows, brand, batch=250):
     url = os.environ.get("SUPABASE_URL")
     key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY")
     if not url or not key:
@@ -861,7 +861,10 @@ def upsert(rows, batch=250):
             "Set SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY (see README.md).\n"
             "The service role key bypasses RLS -- keep it out of git and out of any client."
         )
-    endpoint = url.rstrip("/") + "/rest/v1/creators?on_conflict=channel_link,source_sheet,variant_no"
+    # Must match creators_natural_key_v2_idx; brand is part of the key so two brands
+    # sharing a tab name cannot overwrite each other.
+    endpoint = (url.rstrip("/")
+                + "/rest/v1/creators?on_conflict=channel_link,brand,source_sheet,variant_no")
     headers = {
         "apikey": key,
         "Authorization": f"Bearer {key}",
@@ -870,7 +873,7 @@ def upsert(rows, batch=250):
     }
     sent = 0
     for i in range(0, len(rows), batch):
-        chunk = rows[i:i + batch]
+        chunk = [dict(r, brand=brand) for r in rows[i:i + batch]]
         req = urllib.request.Request(
             endpoint, data=json.dumps(chunk, default=str).encode(),
             headers=headers, method="POST",
@@ -929,6 +932,8 @@ def main():
     ap.add_argument("--out", default="out/creators.json")
     ap.add_argument("--refresh-fx", action="store_true",
                     help="re-fetch exchange rates instead of using the cached file")
+    ap.add_argument("--brand", default="Higgs",
+                    help="which connected sheet these rows belong to (part of the key)")
     args = ap.parse_args()
 
     print("1. extract")
@@ -955,7 +960,8 @@ def main():
 
     if args.upsert:
         print("\n3. load")
-        upsert(rows)
+        print(f"  brand: {args.brand}")
+        upsert(rows, args.brand)
         print("  done")
     else:
         print("\n(dry run -- pass --upsert to write to Supabase)")

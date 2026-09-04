@@ -214,6 +214,7 @@ export async function mapRows(
       fx_rate: rate,
       fx_rate_date: rate !== null ? (fx?.asOf ?? null) : null,
       source_sheet: sourceSheet,
+      brand: sourceSheet,
       variant_no: 1,
       raw_data: {
         source_tab: sheet.name,
@@ -306,7 +307,7 @@ export async function upsertRows(
     for (let i = 0; i < links.length; i += 500) {
       const { data, error } = await supabaseAdmin
         .from('creators')
-        .select('channel_link,source_sheet,variant_no')
+        .select('channel_link,brand,source_sheet,variant_no')
         .eq('source_sheet', sheet)
         .in('channel_link', links.slice(i, i + 500))
       if (error) throw new Error(describeError(error))
@@ -321,7 +322,7 @@ export async function upsertRows(
     const { error } = await supabaseAdmin
       .from('creators')
       .upsert(rows.slice(i, i + batchSize), {
-        onConflict: 'channel_link,source_sheet,variant_no',
+        onConflict: 'channel_link,brand,source_sheet,variant_no',
         defaultToNull: false,
       })
     if (error) throw new Error(describeError(error))

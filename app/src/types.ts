@@ -119,6 +119,8 @@ export interface MappedRow {
   fx_rate: number | null
   fx_rate_date: string | null
   source_sheet: string
+  /** File imports are their own brand, so a sheet sync never prunes them. */
+  brand: string
   variant_no: number
   raw_data: Record<string, unknown>
 }
