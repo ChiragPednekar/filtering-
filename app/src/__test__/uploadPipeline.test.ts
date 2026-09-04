@@ -60,7 +60,7 @@ async function main() {
 
   console.log('\n--- full pipeline against the real workbook ---')
   // Exercise the real parseFile path so number-format currency detection is covered.
-  const bytes = readFileSync('../data/workbook.xlsx')
+  const bytes = readFileSync('../data/workbook_fresh.xlsx')
   const file = new File([new Uint8Array(bytes)], 'workbook.xlsx')
   const parsed = await parseFile(file)
   const name = 'Sheet8'

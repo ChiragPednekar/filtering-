@@ -12,7 +12,8 @@ const UploadModal = lazy(() =>
 import { useCreators } from './hooks/useCreators'
 import { useFilterOptions } from './hooks/useFilterOptions'
 import { canSync, canWrite, configError, runSheetSync } from './lib/supabaseClient'
-import type { SortKey } from './services/creatorsService'
+import { fetchAllForExport, type SortKey } from './services/creatorsService'
+import { downloadBlob, openPrintablePdf, timestamp, toCsv } from './lib/export'
 import { EMPTY_FILTERS, type Filters } from './types'
 
 /** How many filters are active, for the Clear button and the empty state. */
@@ -37,6 +38,7 @@ export default function App() {
   const [uploadOpen, setUploadOpen] = useState(false)
   const [syncing, setSyncing] = useState(false)
   const [syncNote, setSyncNote] = useState<string | null>(null)
+  const [exporting, setExporting] = useState<null | 'csv' | 'pdf'>(null)
 
   const options = useFilterOptions()
   const { rows, total, loading, error, reload } = useCreators({
@@ -55,6 +57,54 @@ export default function App() {
     setFilters(EMPTY_FILTERS)
     setPage(1)
   }, [])
+
+  /** Human-readable summary of what is filtered, for the PDF header. */
+  const describeFilters = useCallback((): string[] => {
+    const out: string[] = []
+    if (filters.search.trim()) out.push(`search "${filters.search.trim()}"`)
+    if (filters.platforms.length) out.push(`platform: ${filters.platforms.join(', ')}`)
+    if (filters.countries.length) out.push(`country: ${filters.countries.join(', ')}`)
+    if (filters.languages.length) out.push(`language: ${filters.languages.join(', ')}`)
+    if (filters.categories.length) {
+      out.push(`category (${filters.categoryMode}): ${filters.categories.join(', ')}`)
+    }
+    if (filters.currencies.length) out.push(`quoted in: ${filters.currencies.join(', ')}`)
+    if (filters.sourceSheets.length) out.push(`sheet: ${filters.sourceSheets.join(', ')}`)
+    const range = (label: string, r: { min: number | null; max: number | null }) => {
+      if (r.min === null && r.max === null) return
+      out.push(`${label} ${r.min ?? '0'}\u2013${r.max ?? 'any'}`)
+    }
+    range('followers', filters.followers)
+    range('subscribers', filters.subscribers)
+    range('fee USD', filters.commercialsAmount)
+    if (filters.onlyWithFee) out.push('only rows with a fee')
+    return out
+  }, [filters])
+
+  /** Exports everything the filters matched, not just the page on screen. */
+  const handleExport = useCallback(async (format: 'csv' | 'pdf') => {
+    setExporting(format)
+    setSyncNote(null)
+    try {
+      const rows = await fetchAllForExport(filters)
+      if (!rows.length) {
+        setSyncNote('Nothing to export - no rows match these filters')
+        return
+      }
+      if (format === 'csv') {
+        downloadBlob(toCsv(rows), `creators_${timestamp()}.csv`, 'text/csv;charset=utf-8')
+        setSyncNote(`Downloaded ${rows.length.toLocaleString()} rows as CSV`)
+      } else {
+        openPrintablePdf(rows, describeFilters())
+        setSyncNote(`Opened ${rows.length.toLocaleString()} rows - choose "Save as PDF"`)
+      }
+    } catch (err) {
+      setSyncNote(err instanceof Error ? err.message : String(err))
+    } finally {
+      setExporting(null)
+      setTimeout(() => setSyncNote(null), 8000)
+    }
+  }, [filters, describeFilters])
 
   const handleSync = useCallback(async () => {
     setSyncing(true)
@@ -89,7 +139,9 @@ export default function App() {
         <div className="max-w-lg rounded-lg border border-slate-200 bg-white p-6">
           <ErrorState
             title="Supabase is not configured"
-            message={`${configError} Copy .env.example to .env, fill in your project details, and restart the app.`}
+            message={`${configError} Locally: copy .env.example to .env and restart. "
+              + "On Vercel: Settings -> Environment Variables, add VITE_SUPABASE_URL and "
+              + "VITE_SUPABASE_ANON_KEY, then redeploy (an env change alone does not rebuild).`}
           />
         </div>
       </div>
@@ -132,6 +184,22 @@ export default function App() {
               {syncing ? 'Syncing…' : 'Sync now'}
             </button>
           )}
+          <button
+            onClick={() => void handleExport('csv')}
+            disabled={exporting !== null || loading || total === 0}
+            title="Download every row matching the current filters as CSV"
+            className="rounded-md border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-50"
+          >
+            {exporting === 'csv' ? 'Preparing\u2026' : `Download CSV${total ? ` (${total.toLocaleString()})` : ''}`}
+          </button>
+          <button
+            onClick={() => void handleExport('pdf')}
+            disabled={exporting !== null || loading || total === 0}
+            title="Open a printable view of the filtered list, then choose Save as PDF"
+            className="rounded-md border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-50"
+          >
+            {exporting === 'pdf' ? 'Preparing\u2026' : 'PDF'}
+          </button>
           {!canWrite && (
             <span className="rounded bg-amber-50 px-2 py-1 text-xs text-amber-800" title="Set VITE_SUPABASE_SERVICE_ROLE_KEY to enable uploads">
               read-only

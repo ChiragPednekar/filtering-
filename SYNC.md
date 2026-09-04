@@ -85,17 +85,47 @@ select public.trigger_sheet_sync('manual');
 
 ## If the sheet's structure changes
 
-The sync knows the six tabs and their column layouts. If your client **adds a new tab**,
-it is ignored until it is added to `TAB_LAYOUT` in
-`supabase/functions/sync-sheet/sheet.ts`, then redeployed:
+**A new tab syncs on its own.** The six known tabs keep their pinned layouts; anything
+new is read from its header row, so a tab your client adds starts syncing with no code
+change. Header names do not have to match the existing ones — `Profile Link`, `Niche`,
+`Region`, `Following`, `Price` and `Scope` all map correctly.
+
+Each run reports what it found:
+
+- `tabs_auto_detected` — new tabs it worked out for itself
+- `tabs_unreadable` — tabs skipped because no column could be identified as the
+  profile link (a Notes tab, say). Skipped rather than guessed at.
+
+**Inserting or reordering rows is fine.** The reader works out each row's layout from
+its contents rather than assuming fixed row numbers.
+
+The only change still needing code is renaming a column to something the header
+patterns do not recognise. Add the pattern to `HEADER_HINTS` in
+`supabase/functions/sync-sheet/sheet.ts` and redeploy:
 
 ```bash
 supabase functions deploy sync-sheet --project-ref akqhuzgekjsvrizysfmp --no-verify-jwt
 ```
 
-Reordering or inserting **rows** is fine — the reader works out each row's layout from
-its contents rather than assuming fixed row numbers. Adding or moving a **column**
-within an existing tab needs the layout updated.
+## Repairs the sync makes automatically
+
+The sheet is hand-maintained, so rows arrive with values in the wrong columns. Rather
+than importing the mess, each run repairs what it can and counts what it did:
+
+| Field in the sync result | What it fixes |
+|---|---|
+| `placeholder_values_cleared` | `Not Shared`, `N/A`, `-`, `Unknown` become NULL instead of being treated as a real country |
+| `geo_fields_repaired` | Rows where Category / Language / Country are filled in the wrong order — a country filed as a category would otherwise pollute the filter dropdowns |
+| `fee_cells_holding_deliverables` | A fee cell containing `1 Instagram Reel + link in bio` moves to the deliverables column instead of leaving the creator with no price |
+| `skipped_rows` | Rows dropped for having no usable link, listed explicitly so a broken link is visible rather than silent |
+
+Repairs are conservative: values are only moved when they identify themselves (a known
+country name sitting in the category column, say), so a genuine category like `Tech` is
+never touched. Every repair is recorded in that row's `raw_data`, so you can see what
+was changed and why.
+
+The original text is never overwritten — `commercials` still holds what the sheet said,
+and `raw_data.original` holds the whole untouched row.
 
 ## Keeping the two pipelines in step
 

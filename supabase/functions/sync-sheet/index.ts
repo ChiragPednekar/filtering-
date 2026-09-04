@@ -100,7 +100,8 @@ Deno.serve(async (req) => {
     }
 
     // ---- transform ---------------------------------------------------------
-    const { rows, tabs, stats } = await readWorkbook(bytes, { usdPerUnit, asOf })
+    const { rows, tabs, autoTabs, unreadableTabs, skippedRows, stats } =
+      await readWorkbook(bytes, { usdPerUnit, asOf })
     if (!rows.length) throw new Error('Sheet parsed to zero rows; refusing to sync.')
 
     // ---- load --------------------------------------------------------------
@@ -130,13 +131,22 @@ Deno.serve(async (req) => {
       status: 'ok',
       trigger,
       tabs,
+      // Tabs picked up from their header row because no layout was pinned for them.
+      tabs_auto_detected: autoTabs,
+      // Tabs skipped entirely: no column could be identified as the profile link.
+      tabs_unreadable: unreadableTabs,
       rows_in_sheet: stats.rowsRead,
       rows_upserted: upserted,
       rows_deleted: deleted ?? 0,
       dropped_header_or_marker: stats.dropped,
       skipped_no_url: stats.skippedNoUrl,
+      // Which rows those were, so a broken link is visible rather than silent.
+      skipped_rows: skippedRows,
       exact_duplicates_merged: stats.exactDuplicates,
       fees_unparsed: stats.feesUnparsed,
+      geo_fields_repaired: stats.geoRepaired,
+      fee_cells_holding_deliverables: stats.feeTextMoved,
+      placeholder_values_cleared: stats.placeholdersCleared,
       sheet_hash: sheetHash.slice(0, 16),
       duration_ms: Date.now() - startedAt.getTime(),
     }

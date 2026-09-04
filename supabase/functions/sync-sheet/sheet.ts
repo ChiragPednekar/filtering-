@@ -13,6 +13,9 @@ import {
   normalizeUrl, parseAudience, parseCategories, parseEmail, parseMoney,
   resolvePlatform, routeAudience,
 } from './parsing.ts'
+import {
+  looksLikeDeliverables, nullIfPlaceholder, repairGeoFields,
+} from './repair.ts'
 
 export const EXCLUDED_TABS = new Set(['Higgs CreatorsGen AI Creators'])
 
@@ -48,6 +51,40 @@ const TAB_LAYOUT: Record<string, Layout | 'auto'> = {
   Sheet7: L_NO_EMAIL,
   Sheet8: L9_SWAP,
   Sheet9: L9,
+}
+
+/**
+ * Header text -> canonical field, so a tab nobody has configured still syncs. Without
+ * this a new tab is silently ignored and its creators never reach the database.
+ */
+const HEADER_HINTS: [Field, RegExp][] = [
+  ['channel_link', /^(channel\s*link|profile\s*link|url|link|channel|profile)$/i],
+  ['mail', /^(mail|e-?mail|email\s*id|email\s*address|contact)$/i],
+  ['category', /^(category|categories|niche|genre|vertical)$/i],
+  ['language', /^(language|lang)$/i],
+  ['country', /^(country|region|location|geo)$/i],
+  ['audience', /^(subscribers?|followers?|subs|audience|reach|following)$/i],
+  ['platform', /^(platform|channel\s*type|social)$/i],
+  ['deliverables', /^(deliverables?|scope|package)$/i],
+  ['commercials', /^(commercials?(\s*\(\s*\$?\s*\))?|rate|fee|price|cost|standard\s*fee|budget)$/i],
+]
+
+/** Build a layout from a tab's header row. Returns null if there is no link column. */
+function layoutFromHeader(headers: string[]): Layout | null {
+  const layout: Layout = {}
+  const taken = new Set<Field>()
+  headers.forEach((h, i) => {
+    const clean = h.trim()
+    if (!clean) return
+    for (const [field, re] of HEADER_HINTS) {
+      if (!taken.has(field) && re.test(clean)) {
+        layout[field] = i
+        taken.add(field)
+        return
+      }
+    }
+  })
+  return layout.channel_link === undefined ? null : layout
 }
 
 const AUDIENCE_RE = /^\d[\d.,]*\s*(k|m|l|lakhs?|lacs?|cr)?$/i
@@ -113,12 +150,21 @@ export interface SheetRow {
 export interface ReadResult {
   rows: SheetRow[]
   tabs: string[]
+  /** Tabs read from their header row because no layout was pinned for them. */
+  autoTabs: string[]
+  /** Tabs skipped because no column could be identified as the profile link. */
+  unreadableTabs: string[]
+  /** Rows dropped for having no usable URL, so they are visible rather than silent. */
+  skippedRows: { tab: string; row: number; value: string }[]
   stats: {
     rowsRead: number
     dropped: number
     skippedNoUrl: number
     exactDuplicates: number
     feesUnparsed: number
+    geoRepaired: number
+    feeTextMoved: number
+    placeholdersCleared: number
   }
 }
 
@@ -165,18 +211,37 @@ export async function readWorkbook(
 
   const mapped: SheetRow[] = []
   const tabs: string[] = []
+  const autoTabs: string[] = []
+  const unreadableTabs: string[] = []
+  const skippedRows: { tab: string; row: number; value: string }[] = []
   let rowsRead = 0, dropped = 0, skippedNoUrl = 0, feesUnparsed = 0
+  let geoRepaired = 0, feeTextMoved = 0, placeholdersCleared = 0
 
   for (const name of wb.SheetNames) {
     if (EXCLUDED_TABS.has(name)) continue
-    const configured = TAB_LAYOUT[name]
-    if (!configured) continue // unknown tab: ignore rather than guess
-    tabs.push(name)
-
     const ws = wb.Sheets[name]
     const ref = ws['!ref']
     if (!ref) continue
     const range = XLSX.utils.decode_range(ref)
+
+    // Known tabs keep their pinned layout. Anything new is read from its header row,
+    // so a tab the client adds starts syncing without a code change.
+    let configured = TAB_LAYOUT[name]
+    if (!configured) {
+      const headerCells: string[] = []
+      for (let c = range.s.c; c <= range.e.c; c++) {
+        const cell = ws[XLSX.utils.encode_cell({ r: range.s.r, c })]
+        headerCells.push(cell?.v === undefined || cell.v === null ? '' : String(cell.v).trim())
+      }
+      const derived = layoutFromHeader(headerCells)
+      if (!derived) {
+        unreadableTabs.push(name)
+        continue
+      }
+      configured = derived
+      autoTabs.push(name)
+    }
+    tabs.push(name)
 
     for (let r = range.s.r + 1; r <= range.e.r; r++) { // +1 skips the header row
       const cells: string[] = []
@@ -204,16 +269,50 @@ export async function readWorkbook(
 
       const rawLink = get('channel_link')
       const { url: channelLink, notes: linkNotes } = normalizeUrl(rawLink)
-      if (!channelLink) { skippedNoUrl++; continue }
+      if (!channelLink) {
+        skippedNoUrl++
+        // Recorded rather than dropped silently, so a creator with a broken link is
+        // visible in the sync result instead of just vanishing.
+        if (skippedRows.length < 50) {
+          skippedRows.push({ tab: name, row: r + 1, value: rawLink.slice(0, 80) })
+        }
+        continue
+      }
 
       const platform = resolvePlatform(get('platform'), rawLink)
       const { value: audience, notes: audNotes } = parseAudience(get('audience'))
       const { subscribers, followers } = routeAudience(platform, audience)
       const { email, notes: mailNotes } = parseEmail(get('mail'))
 
-      const feeRaw = get('commercials')
+      // Placeholders ("Not Shared", "N/A") are absence of data, not data.
+      const rawCountry = get('country')
+      const rawLanguage = get('language')
+      if (rawCountry && !nullIfPlaceholder(rawCountry)) placeholdersCleared++
+      if (rawLanguage && !nullIfPlaceholder(rawLanguage)) placeholdersCleared++
+
+      const geo = repairGeoFields({
+        category: get('category'),
+        language: rawLanguage,
+        country: rawCountry,
+      })
+      if (geo.note) geoRepaired++
+
+      let feeRaw = get('commercials')
+      let deliverablesRaw = get('deliverables')
       const feeIdx = layout.commercials
-      const feeHint = feeIdx === undefined ? null : (fmts[feeIdx] ?? null)
+      let feeHint = feeIdx === undefined ? null : (fmts[feeIdx] ?? null)
+
+      // A fee cell holding deliverables text: move it where it belongs rather than
+      // leaving the creator priceless and the text in the wrong column.
+      let feeTextNote: Record<string, unknown> = {}
+      if (looksLikeDeliverables(feeRaw)) {
+        if (!deliverablesRaw) deliverablesRaw = feeRaw
+        feeTextNote = { fee_cell_held_deliverables: feeRaw }
+        feeRaw = ''
+        feeHint = null
+        feeTextMoved++
+      }
+
       const money = parseMoney(feeRaw, feeHint)
       if (feeRaw && money.amount === null) feesUnparsed++
 
@@ -235,13 +334,13 @@ export async function readWorkbook(
         profile_link: rawLink && rawLink !== channelLink ? rawLink : null,
         mail: email,
         email_id: email,
-        category: parseCategories(get('category')),
-        country: get('country') || null,
-        language: get('language') || null,
+        category: parseCategories(geo.category),
+        country: geo.country,
+        language: geo.language,
         platform,
         subscribers,
         followers,
-        deliverables: get('deliverables') || null,
+        deliverables: deliverablesRaw || null,
         commercials: feeRaw || null,
         commercials_amount: usd ?? money.amount,
         commercials_currency: usd !== null ? 'USD' : money.currency,
@@ -257,7 +356,8 @@ export async function readWorkbook(
           source_row: r + 1,
           synced_at: new Date().toISOString(),
           original,
-          ...linkNotes, ...audNotes, ...mailNotes, ...money.notes,
+          ...linkNotes, ...audNotes, ...mailNotes, ...money.notes, ...feeTextNote,
+          ...(geo.note ? { [geo.note]: true } : {}),
           ...(money.all.length ? { fee_parsed: money.all } : {}),
           ...(money.amount !== null && rate === null
             ? { fx_unconvertible_currency: money.currency }
@@ -300,6 +400,12 @@ export async function readWorkbook(
   return {
     rows,
     tabs,
-    stats: { rowsRead, dropped, skippedNoUrl, exactDuplicates, feesUnparsed },
+    autoTabs,
+    unreadableTabs,
+    skippedRows,
+    stats: {
+      rowsRead, dropped, skippedNoUrl, exactDuplicates, feesUnparsed,
+      geoRepaired, feeTextMoved, placeholdersCleared,
+    },
   }
 }

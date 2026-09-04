@@ -86,7 +86,32 @@ MARKER_ROW_PREFIXES = ("profiles sent",)
 # Parsers
 # --------------------------------------------------------------------------
 
-CURRENCY_SYMBOLS = {"$": "USD", "€": "EUR", "£": "GBP", "₹": "INR"}
+# "$" and "¥" are shared by several currencies; an explicit code in the text always
+# wins over the symbol, and a bare "¥" is flagged in raw_data as a guess.
+CURRENCY_SYMBOLS = {
+    "$": "USD", "€": "EUR", "£": "GBP", "₹": "INR", "¥": "JPY",
+    "₩": "KRW", "₺": "TRY", "₪": "ILS", "฿": "THB", "₱": "PHP",
+    "₫": "VND", "₴": "UAH", "₽": "RUB",
+}
+
+# Compound symbols like HK$ and CA$ must be checked before the bare "$", otherwise
+# every one of them reads as USD.
+COMPOUND_SYMBOLS = [
+    (re.compile(r"\bHK\s*\$", re.I), "HKD"),
+    (re.compile(r"\bNZ\s*\$", re.I), "NZD"),
+    (re.compile(r"\bCA\s*\$", re.I), "CAD"),
+    (re.compile(r"\bC\s*\$", re.I), "CAD"),
+    (re.compile(r"\bAU\s*\$", re.I), "AUD"),
+    (re.compile(r"\bA\s*\$", re.I), "AUD"),
+    (re.compile(r"\bSG\s*\$", re.I), "SGD"),
+    (re.compile(r"\bS\s*\$", re.I), "SGD"),
+    (re.compile(r"\bUS\s*\$", re.I), "USD"),
+    (re.compile(r"\bR\s*\$", re.I), "BRL"),
+    (re.compile(r"\bNT\s*\$", re.I), "TWD"),
+]
+
+# Symbols more than one currency uses, so the mapping is a best guess.
+AMBIGUOUS_SYMBOLS = {"¥"}
 CURRENCY_WORDS = {
     "INR": "INR", "RS": "INR", "RUPEE": "INR", "RUPEES": "INR",
     "USD": "USD", "DOLLAR": "USD", "DOLLARS": "USD",
@@ -118,6 +143,39 @@ CURRENCY_WORDS = {
     "LKR": "LKR",
     "NGN": "NGN",
     "KES": "KES",
+    "CNY": "CNY",
+    "RMB": "CNY",
+    "HKD": "HKD",
+    "TWD": "TWD",
+    "KRW": "KRW",
+    "ILS": "ILS",
+    "VND": "VND",
+    "UAH": "UAH",
+    "RUB": "RUB",
+    "EGP": "EGP",
+    "MAD": "MAD",
+    "COP": "COP",
+    "ARS": "ARS",
+    "CLP": "CLP",
+    "PEN": "PEN",
+    "RSD": "RSD",
+    "ISK": "ISK",
+    "BGN": "BGN",
+    "RON": "RON",
+    "CZK": "CZK",
+    "HUF": "HUF",
+    "VES": "VES",
+    "GHS": "GHS",
+    "TZS": "TZS",
+    "UGX": "UGX",
+    "ETB": "ETB",
+    "XAF": "XAF",
+    "XOF": "XOF",
+    "MUR": "MUR",
+    "JOD": "JOD",
+    "IQD": "IQD",
+    "DZD": "DZD",
+    "TND": "TND",
 }
 # Fee columns on several tabs are headed "Commercials ( $ )", so a bare number means USD.
 DEFAULT_CURRENCY = "USD"
@@ -177,9 +235,16 @@ def parse_money(raw: str, currency_hint: str | None = None):
 
     # A currency named anywhere in the cell applies to bare numbers within it.
     ambient = None
-    for sym, code in CURRENCY_SYMBOLS.items():
+    compound = None
+    for pattern, code in COMPOUND_SYMBOLS:
+        if pattern.search(text):
+            ambient = compound = code
+            break
+    for sym, code in ({} if ambient else CURRENCY_SYMBOLS).items():
         if sym in text:
             ambient = code
+            if sym in AMBIGUOUS_SYMBOLS:
+                notes["fee_currency_symbol_ambiguous"] = sym
             break
     word_hit = re.search(rf"(?<![A-Za-z])({_CUR_WORD_RE})(?![A-Za-z])", text, re.IGNORECASE)
     if word_hit:
@@ -209,6 +274,9 @@ def parse_money(raw: str, currency_hint: str | None = None):
             if m.group(grp):
                 code = CURRENCY_SYMBOLS[m.group(grp)]
                 break
+        # 'HK$ 4000' matches the bare '$' here; the compound prefix is what it means.
+        if code is not None and compound is not None:
+            code = compound
         for grp in ("precode", "postcode"):
             if m.group(grp):
                 code = CURRENCY_WORDS[m.group(grp).upper()]
@@ -361,6 +429,112 @@ def normalize_url(raw: str):
     else:
         text = text.lower()
     return "https://" + text, notes
+
+
+# --------------------------------------------------------------------------
+# Row repairs
+# --------------------------------------------------------------------------
+# Mirrored in supabase/functions/sync-sheet/repair.ts -- keep the two in step and
+# re-run the parity test after changing either.
+
+PLACEHOLDERS = {
+    "not shared", "notshared", "not share", "n/a", "na", "n.a.", "-", "--",
+    "unknown", "not mentioned", "not mention", "none", "nil", "tbd", "tba", "?",
+}
+
+
+def null_if_placeholder(value):
+    """'Not Shared' is absence of data, not data."""
+    v = (value or "").strip()
+    if not v:
+        return None
+    return None if v.lower() in PLACEHOLDERS else v
+
+
+LANGUAGES = {
+    "english", "spanish", "german", "french", "portuguese", "italian", "dutch",
+    "arabic", "hindi", "punjabi", "urdu", "bengali", "tamil", "telugu", "marathi",
+    "gujarati", "malayalam", "kannada", "russian", "polish", "turkish", "greek",
+    "swedish", "norwegian", "danish", "finnish", "czech", "romanian", "hungarian",
+    "ukrainian", "hebrew", "persian", "farsi", "thai", "vietnamese", "indonesian",
+    "malay", "filipino", "tagalog", "japanese", "korean", "chinese", "mandarin",
+    "cantonese", "swahili", "afrikaans", "serbian", "croatian", "bulgarian",
+    "slovak", "slovenian", "lithuanian", "latvian", "estonian", "catalan",
+}
+
+COUNTRIES = {
+    "usa", "us", "u.s.", "u.s.a.", "united states", "united states of america",
+    "uk", "u.k.", "united kingdom", "england", "scotland", "wales", "ireland",
+    "canada", "australia", "new zealand", "india", "pakistan", "bangladesh",
+    "sri lanka", "nepal", "germany", "france", "spain", "italy", "portugal",
+    "netherlands", "belgium", "switzerland", "austria", "sweden", "norway",
+    "denmark", "finland", "poland", "czech republic", "czechia", "slovakia",
+    "hungary", "romania", "bulgaria", "greece", "turkey", "russia", "ukraine",
+    "serbia", "croatia", "slovenia", "lithuania", "latvia", "estonia", "cyprus",
+    "malta", "iceland", "luxembourg", "uae", "u.a.e.", "united arab emirates",
+    "dubai", "abu dhabi", "saudi arabia", "qatar", "kuwait", "bahrain", "oman",
+    "jordan", "lebanon", "egypt", "morocco", "tunisia", "algeria", "nigeria",
+    "ghana", "kenya", "south africa", "ethiopia", "uganda", "tanzania",
+    "brazil", "argentina", "chile", "colombia", "peru", "mexico", "venezuela",
+    "ecuador", "uruguay", "paraguay", "bolivia", "panama", "costa rica",
+    "guatemala", "dominican republic", "puerto rico", "jamaica", "trinidad",
+    "china", "japan", "south korea", "korea", "taiwan", "hong kong", "singapore",
+    "malaysia", "indonesia", "thailand", "vietnam", "philippines", "cambodia",
+    "myanmar", "kazakhstan", "uzbekistan", "kyrgyzstan", "kyrgyztan", "georgia",
+    "armenia", "azerbaijan", "israel", "palestine", "iraq", "iran", "afghanistan",
+}
+
+
+def _is_language(v):
+    return bool(v) and v.strip().lower() in LANGUAGES
+
+
+def _is_country(v):
+    return bool(v) and v.strip().lower() in COUNTRIES
+
+
+def repair_geo_fields(category, language, country):
+    """Put Category / Language / Country back in the right columns.
+
+    Sheet8 rows 55-56 hold 'Canada', 'Graphic Desinger', 'English' in those three
+    columns. Read literally that files a country as a category and a language as a
+    country, which then pollutes every filter dropdown. Only rearranges when the
+    values identify themselves, so a real category like 'Tech' is never moved.
+
+    Returns (category, language, country, note).
+    """
+    category = (category or "").strip()
+    language = null_if_placeholder(language)
+    country = null_if_placeholder(country)
+
+    if _is_country(category) and _is_language(country) and not _is_language(language):
+        return (language or "", country, category,
+                "geo_rotated_category_language_country")
+
+    if _is_language(country) and _is_country(language):
+        return category, country, language, "geo_swapped_language_country"
+
+    return category, language, country, None
+
+
+DELIVERABLE_WORDS = re.compile(
+    r"\b(reel|video|post|story|stories|short|shorts|integration|integrated|"
+    r"dedicated|carousel|collab|link in bio|usage rights|repost|tiktok|youtube|"
+    r"instagram)\b",
+    re.IGNORECASE,
+)
+
+
+def looks_like_deliverables(text):
+    """A fee cell holding deliverables text rather than a price."""
+    v = (text or "").strip()
+    if not v:
+        return False
+    if re.search(r"[$\u20ac\u00a3\u20b9]", v):
+        return False
+    if re.fullmatch(r"\d[\d,. ]*", v):
+        return False
+    return bool(DELIVERABLE_WORDS.search(v))
 
 
 # --------------------------------------------------------------------------
@@ -524,8 +698,23 @@ def transform(records, fx):
         platform, plat_notes = resolve_platform(get("platform"), raw_link)
         audience, aud_notes = parse_audience(get("audience"))
         email, mail_notes = parse_email(get("mail"))
+        # Placeholders ("Not Shared", "N/A") are absence of data, not data.
+        category_raw, language_clean, country_clean, geo_note = repair_geo_fields(
+            get("category"), get("language"), get("country")
+        )
+
         fee_raw = get("commercials")
+        deliverables_raw = get("deliverables")
         fee_hint = format_currency_for("commercials")
+        fee_text_note = {}
+        # A fee cell holding deliverables text: move it where it belongs rather than
+        # leaving the creator priceless and the text stranded in the wrong column.
+        if looks_like_deliverables(fee_raw):
+            if not deliverables_raw:
+                deliverables_raw = fee_raw
+            fee_text_note = {"fee_cell_held_deliverables": fee_raw}
+            fee_raw = ""
+            fee_hint = None
         amount, currency, all_fees, fee_notes = parse_money(fee_raw, currency_hint=fee_hint)
 
         # YouTube reports subscribers; Instagram/TikTok report followers.
@@ -547,8 +736,11 @@ def transform(records, fx):
                  for f in sorted(layout, key=layout.get)],
             ) if v},
         }
-        for notes in (link_notes, plat_notes, aud_notes, mail_notes, fee_notes):
+        for notes in (link_notes, plat_notes, aud_notes, mail_notes, fee_notes,
+                      fee_text_note):
             raw_data.update(notes)
+        if geo_note:
+            raw_data[geo_note] = True
         if all_fees:
             raw_data["fee_parsed"] = [
                 {"amount": p["amount"], "currency": p["currency"]} for p in all_fees
@@ -565,13 +757,13 @@ def transform(records, fx):
             "profile_link": raw_link if raw_link and raw_link != channel_link else None,
             "mail": email,
             "email_id": email,
-            "category": parse_categories(get("category")),
-            "country": get("country") or None,
-            "language": get("language") or None,
+            "category": parse_categories(category_raw),
+            "country": country_clean,
+            "language": language_clean,
             "platform": platform,
             "subscribers": subscribers,
             "followers": followers,
-            "deliverables": get("deliverables") or None,
+            "deliverables": deliverables_raw or None,
             "commercials": get("commercials") or None,
             # Stored in USD so a single filter means one thing across the table.
             "commercials_amount": usd_amount if usd_amount is not None else amount,

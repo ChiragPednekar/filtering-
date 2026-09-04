@@ -1,7 +1,14 @@
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 
-const url = import.meta.env.VITE_SUPABASE_URL as string | undefined
-const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined
+// Public defaults, so a deployment works without env vars being configured first.
+// Both values are designed to be public: the project URL is not a secret, and the
+// publishable key is restricted by RLS to SELECT on `creators`. Env vars still win,
+// so pointing the app at a different project needs no code change.
+const DEFAULT_URL = 'https://akqhuzgekjsvrizysfmp.supabase.co'
+const DEFAULT_ANON_KEY = 'sb_publishable_ZqxJZMUFFB1LQmcpV92b5w_66qDwpiZ'
+
+const url = (import.meta.env.VITE_SUPABASE_URL as string | undefined) || DEFAULT_URL
+const anonKey = (import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined) || DEFAULT_ANON_KEY
 const serviceKey = import.meta.env.VITE_SUPABASE_SERVICE_ROLE_KEY as string | undefined
 const syncSecret = import.meta.env.VITE_SYNC_SECRET as string | undefined
 

@@ -104,3 +104,8 @@ select cron.schedule('sheet-sync', '*/15 * * * *', $cron$ select public.trigger_
 drop extension if exists pg_net cascade;
 create extension pg_net with schema extensions;
 -- (trigger_sheet_sync is recreated above/after this in the applied migration.)
+
+-- Note: the row-level repairs (placeholder clearing, Category/Language/Country
+-- reordering, fee cells holding deliverables text) live in the Edge Function and
+-- etl.py, not in SQL -- see supabase/functions/sync-sheet/repair.ts and the matching
+-- helpers in etl.py. They are applied on every sync.

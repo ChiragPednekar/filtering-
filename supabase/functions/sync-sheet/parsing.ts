@@ -3,7 +3,27 @@
  * normalised exactly the way the original load was. Keep the two in step.
  */
 
-const CURRENCY_SYMBOLS: Record<string, string> = { '$': 'USD', '€': 'EUR', '£': 'GBP', '₹': 'INR' }
+// '$' and '¥' are shared by several currencies; an explicit code in the text always
+// wins over the symbol, and a bare '¥' is flagged in raw_data as a guess.
+const CURRENCY_SYMBOLS: Record<string, string> = {
+  '$': 'USD', '€': 'EUR', '£': 'GBP', '₹': 'INR', '¥': 'JPY',
+  '₩': 'KRW', '₺': 'TRY', '₪': 'ILS', '฿': 'THB', '₱': 'PHP',
+  '₫': 'VND', '₴': 'UAH', '₽': 'RUB',
+}
+
+/**
+ * Compound symbols like HK$ and CA$ must be checked before the bare '$', otherwise
+ * every one of them reads as USD.
+ */
+const COMPOUND_SYMBOLS: [RegExp, string][] = [
+  [/\bHK\s*\$/i, 'HKD'], [/\bNZ\s*\$/i, 'NZD'], [/\bCA\s*\$/i, 'CAD'],
+  [/\bC\s*\$/i, 'CAD'],  [/\bAU\s*\$/i, 'AUD'], [/\bA\s*\$/i, 'AUD'],
+  [/\bSG\s*\$/i, 'SGD'], [/\bS\s*\$/i, 'SGD'],  [/\bUS\s*\$/i, 'USD'],
+  [/\bR\s*\$/i, 'BRL'],  [/\bNT\s*\$/i, 'TWD'],
+]
+
+/** Symbols that more than one currency uses, so the mapping is a best guess. */
+const AMBIGUOUS_SYMBOLS = new Set(['¥'])
 
 const CURRENCY_WORDS: Record<string, string> = {
   INR: 'INR', RS: 'INR', RUPEE: 'INR', RUPEES: 'INR',
@@ -36,6 +56,39 @@ const CURRENCY_WORDS: Record<string, string> = {
   LKR: 'LKR',
   NGN: 'NGN',
   KES: 'KES',
+  CNY: 'CNY',
+  RMB: 'CNY',
+  HKD: 'HKD',
+  TWD: 'TWD',
+  KRW: 'KRW',
+  ILS: 'ILS',
+  VND: 'VND',
+  UAH: 'UAH',
+  RUB: 'RUB',
+  EGP: 'EGP',
+  MAD: 'MAD',
+  COP: 'COP',
+  ARS: 'ARS',
+  CLP: 'CLP',
+  PEN: 'PEN',
+  RSD: 'RSD',
+  ISK: 'ISK',
+  BGN: 'BGN',
+  RON: 'RON',
+  CZK: 'CZK',
+  HUF: 'HUF',
+  VES: 'VES',
+  GHS: 'GHS',
+  TZS: 'TZS',
+  UGX: 'UGX',
+  ETB: 'ETB',
+  XAF: 'XAF',
+  XOF: 'XOF',
+  MUR: 'MUR',
+  JOD: 'JOD',
+  IQD: 'IQD',
+  DZD: 'DZD',
+  TND: 'TND',
 }
 
 /** Several source tabs head the fee column "Commercials ( $ )". */
@@ -96,8 +149,16 @@ export function parseMoney(
 
   // A currency named anywhere in the cell applies to bare numbers inside it.
   let ambient: string | null = null
-  for (const [sym, code] of Object.entries(CURRENCY_SYMBOLS)) {
-    if (text.includes(sym)) { ambient = code; break }
+  let compound: string | null = null
+  for (const [re, code] of COMPOUND_SYMBOLS) {
+    if (re.test(text)) { ambient = compound = code; break }
+  }
+  if (ambient === null) for (const [sym, code] of Object.entries(CURRENCY_SYMBOLS)) {
+    if (text.includes(sym)) {
+      ambient = code
+      if (AMBIGUOUS_SYMBOLS.has(sym)) notes.fee_currency_symbol_ambiguous = sym
+      break
+    }
   }
   const wordHit = new RegExp(`(?<![A-Za-z])(${CUR_WORD_RE})(?![A-Za-z])`, 'i').exec(text)
   if (wordHit) ambient = CURRENCY_WORDS[wordHit[1].toUpperCase()]
@@ -118,6 +179,8 @@ export function parseMoney(
 
     let currency: string | null = null
     for (const sym of [pre, pre2, post]) if (sym) { currency = CURRENCY_SYMBOLS[sym]; break }
+    // 'HK$ 4000' matches the bare '$' above; the compound prefix is what it means.
+    if (currency !== null && compound !== null) currency = compound
     for (const code of [precode, postcode]) if (code) { currency = CURRENCY_WORDS[code.toUpperCase()]; break }
 
     const explicit = currency !== null
