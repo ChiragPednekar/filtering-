@@ -24,6 +24,8 @@ export interface Creator {
   fx_rate_date: string | null
   source_sheet: string
   variant_no: number
+  /** Which connected sheet this row came from. */
+  brand: string
   raw_data: Record<string, unknown> | null
 }
 
@@ -35,6 +37,8 @@ export interface NumericRange {
 export interface Filters {
   /** Matches creator name, link, email, deliverables and the raw fee text. */
   search: string
+  /** Which connected sheet a row came from. */
+  brands: string[]
   categories: string[]
   /** 'any' -> row has at least one selected category; 'all' -> row has every one. */
   categoryMode: 'any' | 'all'
@@ -52,6 +56,7 @@ export interface Filters {
 
 export const EMPTY_FILTERS: Filters = {
   search: '',
+  brands: [],
   categories: [],
   categoryMode: 'any',
   countries: [],
@@ -76,6 +81,7 @@ export interface Option {
 /** Distinct values present in the database, used to build the filter controls. */
 export interface FilterOptions {
   categories: Option[]
+  brands: string[]
   countries: string[]
   languages: string[]
   platforms: string[]

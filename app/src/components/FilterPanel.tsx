@@ -41,6 +41,17 @@ export function FilterPanel({ filters, options, loading, activeCount, onChange, 
               />
             </Field>
 
+            {options.brands.length > 1 && (
+              <Field label="Brand" hint="Which connected sheet the creator came from">
+                <MultiSelect
+                  options={options.brands}
+                  selected={filters.brands}
+                  onChange={(brands) => onChange({ brands })}
+                  maxHeight="max-h-32"
+                />
+              </Field>
+            )}
+
             <Field
               label="Category"
               hint={filters.categoryMode === 'any' ? 'Matches any selected category' : 'Must have every selected category'}

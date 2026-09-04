@@ -1,14 +1,16 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
   autoMapHeaders, mapRows, parseFile, upsertRows,
   type MapResult, type ParsedWorkbook, type UploadSummary,
 } from '../services/uploadService'
-import { canWrite } from '../lib/supabaseClient'
+import { canSync, canWrite, fetchSheetSources, registerSheet,
+  type SheetSource } from '../lib/supabaseClient'
 import { fetchFxRates, type FxRates } from '../services/creatorsService'
 import { CANONICAL_FIELDS, type CanonicalField } from '../types'
 import { formatMoney } from './ui'
 
 type Step = 'pick' | 'map' | 'preview' | 'done'
+type Mode = 'connect' | 'file'
 
 interface Props {
   onClose: () => void
@@ -27,6 +29,37 @@ export function UploadModal({ onClose, onUploaded }: Props) {
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [fx, setFx] = useState<FxRates | null>(null)
+  // Connecting a sheet is the default: a linked sheet keeps syncing, an uploaded file
+  // is a snapshot that goes stale the moment someone edits the original.
+  const [mode, setMode] = useState<Mode>('connect')
+  const [sheetUrl, setSheetUrl] = useState('')
+  const [brand, setBrand] = useState('')
+  const [sources, setSources] = useState<SheetSource[]>([])
+  const [connected, setConnected] = useState<string | null>(null)
+
+  useEffect(() => {
+    fetchSheetSources().then(setSources).catch(() => setSources([]))
+  }, [connected])
+
+  const connect = async () => {
+    setBusy(true)
+    setError(null)
+    try {
+      const r = await registerSheet(sheetUrl.trim(), brand.trim())
+      const first = r.first_sync
+      if (first?.status === 'error') {
+        throw new Error(`Connected, but the first sync failed: ${first.error}`)
+      }
+      setConnected(`${r.registered} — ${first?.rows_upserted?.toLocaleString() ?? 0} creators imported`)
+      setSheetUrl('')
+      setBrand('')
+      onUploaded()
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setBusy(false)
+    }
+  }
 
   const sheet = workbook?.sheets[sheetIndex] ?? null
 
@@ -104,9 +137,11 @@ export function UploadModal({ onClose, onUploaded }: Props) {
       <div className="flex max-h-[88vh] w-full max-w-4xl flex-col rounded-lg bg-white dark:bg-slate-900 shadow-xl">
         <header className="flex items-center justify-between border-b border-slate-200 dark:border-slate-700 px-5 py-3">
           <div>
-            <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Upload sheet</h2>
+            <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Add a sheet</h2>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              {step === 'pick' && 'Choose an Excel or CSV file'}
+              {step === 'pick' && (mode === 'connect'
+                ? 'Connect a Google Sheet that keeps syncing'
+                : 'Import a spreadsheet file once')}
               {step === 'map' && 'Confirm how columns map to the schema'}
               {step === 'preview' && 'Review the cleaned rows before committing'}
               {step === 'done' && 'Upload complete'}
@@ -124,7 +159,10 @@ export function UploadModal({ onClose, onUploaded }: Props) {
             </div>
           )}
 
-          {!canWrite && step !== 'done' && (
+          {/* Only relevant to the file path: connecting a sheet uses VITE_SYNC_SECRET,
+              which is a different key, so showing this in connect mode reads as though
+              connecting were blocked when it is not. */}
+          {!canWrite && step !== 'done' && mode === 'file' && (
             <div className="mb-4 rounded-md border border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950 px-3 py-2 text-sm text-amber-900 dark:text-amber-300">
               Read-only mode: <code className="font-mono text-xs">VITE_SUPABASE_SERVICE_ROLE_KEY</code> is
               not set, so uploads are disabled. You can still map and preview a file.
@@ -132,22 +170,132 @@ export function UploadModal({ onClose, onUploaded }: Props) {
           )}
 
           {step === 'pick' && (
-            <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-slate-300 dark:border-slate-600 py-16 hover:border-slate-400 dark:hover:border-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800/60">
-              <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
-                {busy ? 'Reading file...' : 'Click to choose a file'}
-              </span>
-              <span className="text-xs text-slate-400">.xlsx, .xls or .csv — parsed on this machine</span>
-              <input
-                type="file"
-                accept=".xlsx,.xls,.csv"
-                className="hidden"
-                disabled={busy}
-                onChange={(e) => {
-                  const f = e.target.files?.[0]
-                  if (f) void handleFile(f)
-                }}
-              />
-            </label>
+            <div className="space-y-4">
+              <div className="flex gap-1 rounded-md bg-slate-100 dark:bg-slate-800 p-0.5">
+                {([['connect', 'Connect a Google Sheet'], ['file', 'Import a file once']] as [Mode, string][])
+                  .map(([value, label]) => (
+                    <button
+                      key={value}
+                      onClick={() => { setMode(value); setError(null) }}
+                      className={`flex-1 rounded px-3 py-1.5 text-sm font-medium ${
+                        mode === value
+                          ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-slate-100 shadow-sm'
+                          : 'text-slate-600 dark:text-slate-300'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+              </div>
+
+              {mode === 'connect' ? (
+                <div className="space-y-3">
+                  {!canSync && (
+                    <div className="rounded-md border border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950 px-3 py-2 text-sm text-amber-900 dark:text-amber-300">
+                      Connecting a sheet needs <code className="font-mono text-xs">VITE_SYNC_SECRET</code>.
+                      See DEPLOY.md.
+                    </div>
+                  )}
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    A connected sheet keeps syncing every minute, so edits your team makes
+                    in Google Sheets reach the database on their own. Importing a file
+                    instead gives you a snapshot that goes stale the moment someone edits
+                    the original.
+                  </p>
+
+                  <div>
+                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                      Google Sheet link
+                    </label>
+                    <input
+                      value={sheetUrl}
+                      onChange={(e) => setSheetUrl(e.target.value)}
+                      placeholder="https://docs.google.com/spreadsheets/d/..."
+                      className="w-full rounded-md border border-slate-200 dark:border-slate-700 px-3 py-2 text-sm outline-none focus:border-slate-400 dark:focus:border-slate-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                      Brand name
+                    </label>
+                    <input
+                      value={brand}
+                      onChange={(e) => setBrand(e.target.value)}
+                      placeholder="e.g. Acme"
+                      className="w-full rounded-md border border-slate-200 dark:border-slate-700 px-3 py-2 text-sm outline-none focus:border-slate-400 dark:focus:border-slate-500"
+                    />
+                    <p className="mt-1 text-xs text-slate-400">
+                      Keeps each brand&apos;s creators separate. Two sheets both containing a
+                      tab called &quot;Sheet2&quot; would otherwise overwrite each other.
+                    </p>
+                  </div>
+
+                  <div className="rounded-md border border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950 px-3 py-2 text-xs text-amber-900 dark:text-amber-300">
+                    The sheet must be shared as <strong>Anyone with the link → Viewer</strong>,
+                    otherwise the sync cannot read it. It is checked before anything is saved.
+                  </div>
+
+                  {connected && (
+                    <div className="rounded-md border border-green-200 dark:border-green-900 bg-green-50 dark:bg-green-950 px-3 py-2 text-sm text-green-800 dark:text-green-300">
+                      Connected: {connected}
+                    </div>
+                  )}
+
+                  {sources.length > 0 && (
+                    <div className="rounded-md border border-slate-200 dark:border-slate-700">
+                      <div className="border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                        Connected sheets ({sources.length})
+                      </div>
+                      <div className="max-h-40 overflow-y-auto">
+                        {sources.map((s) => (
+                          <div key={s.brand} className="flex items-center justify-between gap-3 border-b border-slate-100 dark:border-slate-800 px-3 py-2 text-sm last:border-0">
+                            <div className="min-w-0">
+                              <a href={s.sheet_url} target="_blank" rel="noreferrer noopener"
+                                 className="font-medium text-blue-700 dark:text-blue-400 hover:underline">
+                                {s.brand}
+                              </a>
+                              <div className="truncate text-xs text-slate-400" title={s.last_error ?? ''}>
+                                {s.last_status === 'error'
+                                  ? `last sync failed: ${s.last_error}`
+                                  : `${s.last_rows?.toLocaleString() ?? 0} creators · last synced ${
+                                      s.last_run_at ? new Date(s.last_run_at).toLocaleTimeString() : 'never'}`}
+                              </div>
+                            </div>
+                            <span className={`shrink-0 rounded px-1.5 py-0.5 text-xs ${
+                              s.last_status === 'error'
+                                ? 'bg-red-50 dark:bg-red-950 text-red-800 dark:text-red-300'
+                                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300'
+                            }`}>
+                              {s.enabled ? (s.last_status ?? 'pending') : 'paused'}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-slate-300 dark:border-slate-600 py-14 hover:border-slate-400 dark:hover:border-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800/60">
+                  <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                    {busy ? 'Reading file...' : 'Click to choose a file'}
+                  </span>
+                  <span className="text-xs text-slate-400">
+                    .xlsx, .xls or .csv — parsed on this machine, imported once
+                  </span>
+                  <input
+                    type="file"
+                    accept=".xlsx,.xls,.csv"
+                    className="hidden"
+                    disabled={busy}
+                    onChange={(e) => {
+                      const f = e.target.files?.[0]
+                      if (f) void handleFile(f)
+                    }}
+                  />
+                </label>
+              )}
+            </div>
           )}
 
           {step === 'map' && sheet && workbook && (
@@ -329,6 +477,17 @@ export function UploadModal({ onClose, onUploaded }: Props) {
           >
             {step === 'pick' || step === 'done' ? 'Close' : 'Back'}
           </button>
+
+          {step === 'pick' && mode === 'connect' && (
+            <button
+              onClick={() => void connect()}
+              disabled={busy || !canSync || !sheetUrl.trim() || !brand.trim()}
+              title={canSync ? undefined : 'Connecting a sheet needs VITE_SYNC_SECRET'}
+              className="rounded-md bg-slate-900 dark:bg-slate-100 px-4 py-1.5 text-sm font-medium text-white dark:text-slate-900 hover:bg-slate-700 dark:hover:bg-white disabled:opacity-40"
+            >
+              {busy ? 'Connecting\u2026' : 'Connect sheet'}
+            </button>
+          )}
 
           {step === 'map' && (
             <button

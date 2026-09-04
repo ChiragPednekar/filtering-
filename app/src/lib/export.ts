@@ -22,6 +22,7 @@ const COLUMNS: { header: string; get: (r: Creator) => string }[] = [
   { header: 'Fee (as written)', get: (r) => r.commercials ?? '' },
   { header: 'Deliverables', get: (r) => r.deliverables ?? '' },
   { header: 'Email', get: (r) => r.mail ?? '' },
+  { header: 'Brand', get: (r) => r.brand ?? '' },
   { header: 'Source sheet', get: (r) => r.source_sheet },
 ]
 

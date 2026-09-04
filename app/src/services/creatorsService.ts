@@ -6,7 +6,7 @@ const LIST_COLUMNS =
   'id,channel_link,creator_name,profile_link,mail,email_id,category,country,language,' +
   'platform,subscribers,followers,deliverables,commercials,commercials_amount,' +
   'commercials_currency,commercials_amount_native,commercials_currency_native,' +
-  'fx_rate,fx_rate_date,source_sheet,variant_no'
+  'fx_rate,fx_rate_date,source_sheet,variant_no,brand'
 
 export type SortKey =
   | 'creator_name' | 'channel_link' | 'country' | 'platform'
@@ -55,6 +55,7 @@ function applyFilters<T>(query: T, f: Filters): T {
       : q.overlaps('category_norm', values)
   }
 
+  if (f.brands.length) q = q.in('brand', f.brands)
   if (f.countries.length) q = q.in('country', f.countries)
   if (f.languages.length) q = q.in('language', f.languages)
   if (f.platforms.length) q = q.in('platform', f.platforms)

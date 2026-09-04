@@ -88,3 +88,53 @@ export async function runSheetSync(): Promise<SyncResult> {
   if (!res.ok) throw new Error(body.error ?? `Sync failed (HTTP ${res.status})`)
   return body
 }
+
+
+/** A Google Sheet connected for continuous syncing. */
+export interface SheetSource {
+  brand: string
+  sheet_id: string
+  sheet_url: string
+  enabled: boolean
+  last_run_at: string | null
+  last_status: string | null
+  last_error: string | null
+  last_rows: number | null
+}
+
+export async function fetchSheetSources(): Promise<SheetSource[]> {
+  const { data, error } = await supabase
+    .from('sheet_sources')
+    .select('brand,sheet_id,sheet_url,enabled,last_run_at,last_status,last_error,last_rows')
+    .order('brand')
+  if (error) throw new Error(describeError(error))
+  return (data ?? []) as SheetSource[]
+}
+
+export interface RegisterResult {
+  status: string
+  registered?: string
+  first_sync?: { status: string; rows_upserted?: number; error?: string }
+  error?: string
+}
+
+/**
+ * Connects a Google Sheet so it syncs every minute from now on.
+ *
+ * The Edge Function validates the sheet is readable before storing it, so a typo or a
+ * sheet that was never link-shared fails here with a usable message rather than being
+ * accepted and then silently never syncing.
+ */
+export async function registerSheet(sheetUrl: string, brand: string): Promise<RegisterResult> {
+  if (!url || !syncSecret) {
+    throw new Error('Connecting a sheet needs VITE_SYNC_SECRET. See DEPLOY.md.')
+  }
+  const res = await fetch(`${url.replace(/\/$/, '')}/functions/v1/sync-sheet`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-sync-secret': syncSecret },
+    body: JSON.stringify({ action: 'register', sheetUrl, newBrand: brand }),
+  })
+  const body = (await res.json().catch(() => ({}))) as RegisterResult
+  if (!res.ok) throw new Error(body.error ?? `Could not connect the sheet (HTTP ${res.status})`)
+  return body
+}

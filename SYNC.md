@@ -18,6 +18,26 @@ Before switching sources, diff the two first — a copy is often a snapshot that
 drifted, and syncing it silently reverts whatever changed since. `etl.py --local`
 against each file and comparing the output is enough to catch it.
 
+## Multiple brands, multiple sheets
+
+Every connected sheet is a row in `sheet_sources`, and each sync run processes all of
+them. Add one from the app: **Upload sheet → Connect a Google Sheet**, paste the link,
+name the brand. It is validated, imported immediately, then synced every minute like
+the rest.
+
+`brand` is part of the natural key — `(channel_link, brand, source_sheet, variant_no)`
+— not just a label. Without it, a second brand whose workbook also contains a tab
+called `Sheet2` would overwrite the first brand's rows, and the prune would then delete
+whatever it did not recognise. Pruning is scoped per brand for the same reason.
+
+One bad sheet does not stop the others: a failure is recorded against that sheet in
+`sheet_sources.last_error` and the run continues. The response reports `partial` when
+some sheets fail and some succeed.
+
+**Connecting a link and importing a file are different things.** A connected sheet keeps
+syncing. An imported file is a snapshot that goes stale the moment someone edits the
+original — it is still there for one-off spreadsheets that do not live in Drive.
+
 ## How it works
 
 An Edge Function (`sync-sheet`) fetches the sheet, cleans it with the same rules as

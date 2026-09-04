@@ -3,7 +3,7 @@ import { fetchFilterOptions } from '../services/creatorsService'
 import type { FilterOptions } from '../types'
 
 const EMPTY: FilterOptions = {
-  categories: [], countries: [], languages: [], platforms: [],
+  categories: [], brands: [], countries: [], languages: [], platforms: [],
   currencies: [], source_sheets: [],
   ranges: {
     subscribers: { min: 0, max: 0 },

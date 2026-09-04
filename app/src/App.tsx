@@ -64,6 +64,7 @@ export default function App() {
   const describeFilters = useCallback((): string[] => {
     const out: string[] = []
     if (filters.search.trim()) out.push(`search "${filters.search.trim()}"`)
+    if (filters.brands.length) out.push(`brand: ${filters.brands.join(', ')}`)
     if (filters.platforms.length) out.push(`platform: ${filters.platforms.join(', ')}`)
     if (filters.countries.length) out.push(`country: ${filters.countries.join(', ')}`)
     if (filters.languages.length) out.push(`language: ${filters.languages.join(', ')}`)

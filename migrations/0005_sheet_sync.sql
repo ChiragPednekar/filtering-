@@ -117,3 +117,12 @@ create extension pg_net with schema extensions;
 -- the race where a newer run's prune could delete rows an older, slower run had not
 -- yet re-stamped. Also adds a nightly prune keeping 7 days of successful sync_log rows;
 -- errors are kept indefinitely.
+
+-- Applied as `multi_sheet_sources_and_brand` + `brand_scoped_prune_and_registration`.
+--
+-- Multiple brands, each with its own Google Sheet, registered in sheet_sources.
+-- The blocking problem was the natural key: (channel_link, source_sheet, variant_no)
+-- where source_sheet is just a tab name, so a second brand whose workbook also has a
+-- "Sheet2" would overwrite the first brand's rows -- and the prune would then delete
+-- whatever it did not recognise. brand is therefore part of the key, and
+-- sync_prune_creators takes a brand so syncing one sheet never prunes another's rows.
