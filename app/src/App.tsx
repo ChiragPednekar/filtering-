@@ -9,6 +9,9 @@ import { ErrorState } from './components/ui'
 const UploadModal = lazy(() =>
   import('./components/UploadModal').then((m) => ({ default: m.UploadModal })),
 )
+const AddCreatorModal = lazy(() =>
+  import('./components/AddCreatorModal').then((m) => ({ default: m.AddCreatorModal })),
+)
 import { useCreators } from './hooks/useCreators'
 import { useTheme, type Theme } from './hooks/useTheme'
 import { useFilterOptions } from './hooks/useFilterOptions'
@@ -37,6 +40,7 @@ export default function App() {
   const [sortKey, setSortKey] = useState<SortKey>('followers')
   const [sortAsc, setSortAsc] = useState(false)
   const [uploadOpen, setUploadOpen] = useState(false)
+  const [addOpen, setAddOpen] = useState(false)
   const [syncing, setSyncing] = useState(false)
   const [syncNote, setSyncNote] = useState<string | null>(null)
   const [exporting, setExporting] = useState<null | 'csv' | 'pdf'>(null)
@@ -229,11 +233,21 @@ export default function App() {
           >
             {exporting === 'pdf' ? 'Preparing\u2026' : 'PDF'}
           </button>
-          {!canWrite && (
-            <span className="rounded bg-amber-50 dark:bg-amber-950 px-2 py-1 text-xs text-amber-800 dark:text-amber-300" title="Set VITE_SUPABASE_SERVICE_ROLE_KEY to enable uploads">
+          {/* "read-only" is only true when neither path can write. With the sync
+              secret set, adding creators and connecting sheets both work; it is just
+              file import that needs the service role key. */}
+          {!canWrite && !canSync && (
+            <span className="rounded bg-amber-50 dark:bg-amber-950 px-2 py-1 text-xs text-amber-800 dark:text-amber-300" title="Neither VITE_SUPABASE_SERVICE_ROLE_KEY nor VITE_SYNC_SECRET is set">
               read-only
             </span>
           )}
+          <button
+            onClick={() => setAddOpen(true)}
+            title="Add a single creator that is not in any connected sheet"
+            className="rounded-md border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+          >
+            Add creator
+          </button>
           <button
             onClick={() => setUploadOpen(true)}
             className="rounded-md bg-slate-900 dark:bg-slate-100 px-3.5 py-1.5 text-sm font-medium text-white dark:text-slate-900 hover:bg-slate-700 dark:hover:bg-white"
@@ -292,6 +306,19 @@ export default function App() {
           )}
         </main>
       </div>
+
+      {addOpen && (
+        <Suspense fallback={null}>
+          <AddCreatorModal
+            brands={options.options.brands}
+            onClose={() => setAddOpen(false)}
+            onAdded={() => {
+              void options.reload()
+              reload()
+            }}
+          />
+        </Suspense>
+      )}
 
       {uploadOpen && (
         <Suspense fallback={null}>

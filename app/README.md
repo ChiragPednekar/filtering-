@@ -112,6 +112,23 @@ src/components/             FilterPanel, ResultsTable, Pagination, UploadModal, 
 No Supabase call is made from a component — they all go through `services/`, reached
 via the hooks.
 
+## Adding a creator by hand
+
+**Add creator** in the header, for creators that are not in any sheet. Input is messy
+on purpose: `88.4k` becomes 88,400, `INR 25k` becomes 25,000 INR converted to USD, and
+tracking parameters are stripped from the URL. The same cleaning code runs on it as on
+a sheet row, so a value typed here lands identically to the same value in a cell.
+
+The write goes through the `sync-sheet` Edge Function rather than straight to Postgres,
+so the service role key never ships in the browser bundle — it uses `VITE_SYNC_SECRET`,
+which only permits this one operation.
+
+Rows added this way carry `manually_added = true` and are excluded from sync pruning.
+Without that they would be deleted within a minute of being added: the prune removes
+anything in a synced brand that the latest sheet run did not stamp, and a hand-added
+row never is. Because of the flag it is safe to file a manual creator under a brand
+whose sheet syncs every minute.
+
 ## Fees are in USD
 
 Every fee in the table is USD. `commercials_amount` holds the converted value and the

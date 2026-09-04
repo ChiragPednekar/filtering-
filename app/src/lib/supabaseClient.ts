@@ -138,3 +138,53 @@ export async function registerSheet(sheetUrl: string, brand: string): Promise<Re
   if (!res.ok) throw new Error(body.error ?? `Could not connect the sheet (HTTP ${res.status})`)
   return body
 }
+
+
+export interface NewCreator {
+  channel_link: string
+  brand: string
+  mail?: string
+  category?: string
+  country?: string
+  language?: string
+  audience?: string
+  commercials?: string
+  deliverables?: string
+  platform?: string
+}
+
+export interface AddCreatorResult {
+  status: string
+  creator?: {
+    channel_link: string
+    brand: string
+    platform: string | null
+    followers: number | null
+    subscribers: number | null
+    fee_usd: number | null
+    quoted: string | null
+  }
+  error?: string
+}
+
+/**
+ * Adds one creator by hand.
+ *
+ * Goes through the Edge Function rather than writing directly, so the service role
+ * key never has to ship in the browser bundle. The function applies exactly the same
+ * cleaning a sheet row gets -- "INR 25k" typed here lands the same as "INR 25k" in a
+ * cell -- and flags the row so a sheet sync can never delete it.
+ */
+export async function addCreator(creator: NewCreator): Promise<AddCreatorResult> {
+  if (!url || !syncSecret) {
+    throw new Error('Adding a creator needs VITE_SYNC_SECRET. See DEPLOY.md.')
+  }
+  const res = await fetch(`${url.replace(/\/$/, '')}/functions/v1/sync-sheet`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-sync-secret': syncSecret },
+    body: JSON.stringify({ action: 'add_creator', creator }),
+  })
+  const body = (await res.json().catch(() => ({}))) as AddCreatorResult
+  if (!res.ok) throw new Error(body.error ?? `Could not add the creator (HTTP ${res.status})`)
+  return body
+}

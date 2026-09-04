@@ -6,7 +6,7 @@ const LIST_COLUMNS =
   'id,channel_link,creator_name,profile_link,mail,email_id,category,country,language,' +
   'platform,subscribers,followers,deliverables,commercials,commercials_amount,' +
   'commercials_currency,commercials_amount_native,commercials_currency_native,' +
-  'fx_rate,fx_rate_date,source_sheet,variant_no,brand'
+  'fx_rate,fx_rate_date,source_sheet,variant_no,brand,manually_added'
 
 export type SortKey =
   | 'creator_name' | 'channel_link' | 'country' | 'platform'

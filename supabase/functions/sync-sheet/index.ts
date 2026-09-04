@@ -18,6 +18,10 @@
  */
 import { createClient, type SupabaseClient } from 'npm:@supabase/supabase-js@2'
 import { readWorkbook } from './sheet.ts'
+import {
+  normalizeUrl, parseAudience, parseCategories, parseEmail, parseMoney,
+  resolvePlatform, routeAudience,
+} from './parsing.ts'
 
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!
 const SERVICE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!
@@ -235,6 +239,82 @@ Deno.serve(async (req) => {
     const fx = await loadFx(db)
     const result = await syncOne(db, { brand, sheet_id: sheetId }, fx, 'register')
     return json({ status: 'ok', registered: brand, first_sync: result })
+  }
+
+  // Adding one creator by hand. Cleaned with exactly the same rules as a sheet row,
+  // so "INR 25k" typed into the form lands identically to "INR 25k" in a cell.
+  if (body?.action === 'add_creator') {
+    const c = (body?.creator ?? {}) as Record<string, string>
+
+    const { url: channelLink } = normalizeUrl(String(c.channel_link ?? ''))
+    if (!channelLink) {
+      return json({ error: 'A valid profile or channel URL is required.' }, 400)
+    }
+
+    const brand = String(c.brand ?? '').trim() || 'Manual'
+    const platform = resolvePlatform(c.platform ?? '', channelLink)
+    const { value: audience } = parseAudience(String(c.audience ?? ''))
+    const { subscribers, followers } = routeAudience(platform, audience)
+    const { email, notes: mailNotes } = parseEmail(String(c.mail ?? ''))
+
+    const fx = await loadFx(db)
+    const money = parseMoney(String(c.commercials ?? ''))
+    const rate = money.currency
+      ? (fx.usdPerUnit[money.currency.toUpperCase()] ?? null)
+      : null
+    const usd = money.amount !== null && rate !== null
+      ? Math.round(money.amount * rate * 100) / 100
+      : null
+
+    const row = {
+      channel_link: channelLink,
+      creator_name: undefined,  // generated column
+      mail: email,
+      email_id: email,
+      category: parseCategories(String(c.category ?? '')),
+      country: String(c.country ?? '').trim() || null,
+      language: String(c.language ?? '').trim() || null,
+      platform,
+      subscribers,
+      followers,
+      deliverables: String(c.deliverables ?? '').trim() || null,
+      commercials: String(c.commercials ?? '').trim() || null,
+      commercials_amount: usd ?? money.amount,
+      commercials_currency: usd !== null ? 'USD' : money.currency,
+      commercials_amount_native: money.amount,
+      commercials_currency_native: money.currency,
+      fx_rate: rate,
+      fx_rate_date: rate !== null ? fx.asOf : null,
+      brand,
+      source_sheet: 'Added in app',
+      variant_no: 1,
+      manually_added: true,
+      last_synced_at: new Date().toISOString(),
+      raw_data: {
+        added_in_app_at: new Date().toISOString(),
+        original: c,
+        ...mailNotes,
+        ...money.notes,
+        ...(money.all.length ? { fee_parsed: money.all } : {}),
+      },
+    }
+    delete (row as Record<string, unknown>).creator_name
+
+    const { error } = await db.from('creators').upsert(row, {
+      onConflict: 'channel_link,brand,source_sheet,variant_no',
+      defaultToNull: false,
+    })
+    if (error) return json({ error: error.message }, 400)
+
+    return json({
+      status: 'ok',
+      creator: {
+        channel_link: channelLink, brand, platform,
+        followers, subscribers,
+        fee_usd: usd ?? money.amount,
+        quoted: money.amount !== null ? `${money.amount} ${money.currency}` : null,
+      },
+    })
   }
 
   // Normal path: sync every enabled sheet, or one named brand.

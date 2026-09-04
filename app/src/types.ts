@@ -26,6 +26,8 @@ export interface Creator {
   variant_no: number
   /** Which connected sheet this row came from. */
   brand: string
+  /** Typed into the app rather than read from a sheet; never pruned by a sync. */
+  manually_added: boolean
   raw_data: Record<string, unknown> | null
 }
 

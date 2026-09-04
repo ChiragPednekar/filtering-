@@ -126,3 +126,9 @@ create extension pg_net with schema extensions;
 -- "Sheet2" would overwrite the first brand's rows -- and the prune would then delete
 -- whatever it did not recognise. brand is therefore part of the key, and
 -- sync_prune_creators takes a brand so syncing one sheet never prunes another's rows.
+
+-- Applied as `manually_added_creators`.
+-- Creators typed into the app rather than read from a sheet. Without the flag they
+-- would be deleted within a minute: the prune removes any row in a synced brand that
+-- the latest run did not stamp, and a hand-added row never is. Flagging them keeps
+-- them safe under any brand, so a manual creator can sit alongside a brand's sheet rows.
