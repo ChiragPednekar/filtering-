@@ -22,19 +22,30 @@ bundle still won't have them.
 If the build itself fails, set **Root Directory** to `app` in Settings → General; the
 React app lives in that subfolder, not the repo root.
 
-## Do NOT set these two on a public deployment
+## Editing and adding on the web needs one more variable
 
-| Name | Why not |
+`VITE_SYNC_SECRET` is what lets the browser call the `sync-sheet` Edge Function, and
+that function is the only path the app has for **Add creator**, **Edit creator**,
+**Connect a sheet** and **Sync now**. Without it those are visibly disabled — an amber
+"needs VITE_SYNC_SECRET" note, greyed-out Save — while filtering, search and export
+carry on working. Nothing crashes; the app just runs read-only.
+
+Whether to set it depends entirely on whether the URL is protected, because every
+`VITE_` variable is compiled into the JavaScript bundle and readable in DevTools:
+
+| Deployment Protection | Set `VITE_SYNC_SECRET`? |
 |---|---|
-| `VITE_SUPABASE_SERVICE_ROLE_KEY` | Bypasses RLS completely. Every `VITE_` variable is compiled into the JavaScript bundle and readable by anyone who opens DevTools. On a public URL this hands the whole database — read, write, delete — to any visitor. |
-| `VITE_SYNC_SECRET` | Lets anyone trigger unlimited sheet syncs against your project. |
+| **On** (Vercel Authentication or a password) | Yes. Only people who get past the login can read the bundle, and they are people you already trust with the data. |
+| **Off** — anyone with the link | No. It would let any visitor trigger unlimited syncs and write to your table. |
 
-Leaving them unset is not a degradation — the app detects it and runs read-only: the
-header shows a `read-only` badge and the upload dialog explains why committing is
-disabled. Filtering, CSV and PDF export all work.
+Check which you have under **Settings → Deployment Protection**. As of the last
+check the production URL redirects to Vercel SSO, so protection is **on** and setting
+the variable is reasonable.
 
-Uploads and "Sync now" stay in the Electron build, which is distributed to people you
-trust. That split is deliberate.
+`VITE_SUPABASE_SERVICE_ROLE_KEY` is a different matter: never set it on any web
+deployment, protected or not. It bypasses RLS completely and would hand the whole
+database to anyone who opens DevTools past the login. Uploads that need it stay in
+the Electron build.
 
 ## Before you share the URL — read this
 
@@ -63,7 +74,10 @@ and user management. Say the word and I'll build it.
 
 **3. Don't deploy publicly.** Use the Electron build and keep the database closed.
 
-Until one of these is in place, treat the deployment URL as public — because it is.
+Since the last check, option 1 is in place: the production URL redirects to Vercel
+SSO, so the table is no longer readable by anyone with the link. Option 2 is still
+worth doing if you ever need more than one person on it without giving them access
+to your Vercel account — say the word and I'll build it.
 
 ## Local development
 
