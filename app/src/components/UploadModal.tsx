@@ -100,40 +100,40 @@ export function UploadModal({ onClose, onUploaded }: Props) {
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 p-6">
-      <div className="flex max-h-[88vh] w-full max-w-4xl flex-col rounded-lg bg-white shadow-xl">
-        <header className="flex items-center justify-between border-b border-slate-200 px-5 py-3">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 dark:bg-black/70 p-6">
+      <div className="flex max-h-[88vh] w-full max-w-4xl flex-col rounded-lg bg-white dark:bg-slate-900 shadow-xl">
+        <header className="flex items-center justify-between border-b border-slate-200 dark:border-slate-700 px-5 py-3">
           <div>
-            <h2 className="text-sm font-semibold text-slate-900">Upload sheet</h2>
-            <p className="text-xs text-slate-500">
+            <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Upload sheet</h2>
+            <p className="text-xs text-slate-500 dark:text-slate-400">
               {step === 'pick' && 'Choose an Excel or CSV file'}
               {step === 'map' && 'Confirm how columns map to the schema'}
               {step === 'preview' && 'Review the cleaned rows before committing'}
               {step === 'done' && 'Upload complete'}
             </p>
           </div>
-          <button onClick={onClose} className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700">
+          <button onClick={onClose} className="rounded p-1 text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-slate-700 dark:hover:text-slate-300">
             ✕
           </button>
         </header>
 
         <div className="flex-1 overflow-y-auto p-5">
           {error && (
-            <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-800">
+            <div className="mb-4 rounded-md border border-red-200 dark:border-red-900 bg-red-50 dark:bg-red-950 px-3 py-2 text-sm text-red-800 dark:text-red-300">
               {error}
             </div>
           )}
 
           {!canWrite && step !== 'done' && (
-            <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+            <div className="mb-4 rounded-md border border-amber-200 dark:border-amber-900 bg-amber-50 dark:bg-amber-950 px-3 py-2 text-sm text-amber-900 dark:text-amber-300">
               Read-only mode: <code className="font-mono text-xs">VITE_SUPABASE_SERVICE_ROLE_KEY</code> is
               not set, so uploads are disabled. You can still map and preview a file.
             </div>
           )}
 
           {step === 'pick' && (
-            <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-slate-300 py-16 hover:border-slate-400 hover:bg-slate-50">
-              <span className="text-sm font-medium text-slate-700">
+            <label className="flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-slate-300 dark:border-slate-600 py-16 hover:border-slate-400 dark:hover:border-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800/60">
+              <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
                 {busy ? 'Reading file...' : 'Click to choose a file'}
               </span>
               <span className="text-xs text-slate-400">.xlsx, .xls or .csv — parsed on this machine</span>
@@ -154,13 +154,13 @@ export function UploadModal({ onClose, onUploaded }: Props) {
             <div className="space-y-4">
               {workbook.sheets.length > 1 && (
                 <div>
-                  <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                     Tab
                   </label>
                   <select
                     value={sheetIndex}
                     onChange={(e) => selectSheet(workbook, Number(e.target.value))}
-                    className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm outline-none focus:border-slate-400"
+                    className="w-full rounded-md border border-slate-200 dark:border-slate-700 px-3 py-2 text-sm outline-none focus:border-slate-400 dark:focus:border-slate-500"
                   >
                     {workbook.sheets.map((s, i) => (
                       <option key={s.name} value={i}>{s.name} ({s.rows.length} rows)</option>
@@ -170,13 +170,13 @@ export function UploadModal({ onClose, onUploaded }: Props) {
               )}
 
               <div>
-                <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+                <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                   Source sheet name
                 </label>
                 <input
                   value={sourceName}
                   onChange={(e) => setSourceName(e.target.value)}
-                  className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm outline-none focus:border-slate-400"
+                  className="w-full rounded-md border border-slate-200 dark:border-slate-700 px-3 py-2 text-sm outline-none focus:border-slate-400 dark:focus:border-slate-500"
                 />
                 <p className="mt-1 text-xs text-slate-400">
                   Stored as <code className="font-mono">source_sheet</code> and part of the upsert key.
@@ -184,16 +184,16 @@ export function UploadModal({ onClose, onUploaded }: Props) {
                 </p>
               </div>
 
-              <div className="rounded-md border border-slate-200">
-                <div className="grid grid-cols-[1fr_1fr_2fr] gap-2 border-b border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500">
+              <div className="rounded-md border border-slate-200 dark:border-slate-700">
+                <div className="grid grid-cols-[1fr_1fr_2fr] gap-2 border-b border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-950 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
                   <span>Column in file</span>
                   <span>Maps to</span>
                   <span>First value</span>
                 </div>
                 <div className="max-h-72 overflow-y-auto">
                   {sheet.headers.map((header, i) => (
-                    <div key={i} className="grid grid-cols-[1fr_1fr_2fr] items-center gap-2 border-b border-slate-100 px-3 py-2 last:border-0">
-                      <span className="truncate text-sm text-slate-800" title={header}>
+                    <div key={i} className="grid grid-cols-[1fr_1fr_2fr] items-center gap-2 border-b border-slate-100 dark:border-slate-800 px-3 py-2 last:border-0">
+                      <span className="truncate text-sm text-slate-800 dark:text-slate-200" title={header}>
                         {header || <em className="text-slate-400">(unnamed)</em>}
                       </span>
                       <select
@@ -201,7 +201,7 @@ export function UploadModal({ onClose, onUploaded }: Props) {
                         onChange={(e) =>
                           setMapping({ ...mapping, [i]: e.target.value as CanonicalField | '' })
                         }
-                        className="rounded-md border border-slate-200 px-2 py-1 text-sm outline-none focus:border-slate-400"
+                        className="rounded-md border border-slate-200 dark:border-slate-700 px-2 py-1 text-sm outline-none focus:border-slate-400 dark:focus:border-slate-500"
                       >
                         <option value="">— ignore —</option>
                         {CANONICAL_FIELDS.map((f) => (
@@ -233,38 +233,38 @@ export function UploadModal({ onClose, onUploaded }: Props) {
                   ['Exact duplicates merged', mapped.exactDuplicates],
                   ['Header/blank rows dropped', mapped.droppedRows],
                 ].map(([label, value]) => (
-                  <div key={label as string} className="rounded-md border border-slate-200 px-3 py-2">
-                    <p className="text-xl font-semibold tabular-nums text-slate-900">{value as number}</p>
-                    <p className="text-xs text-slate-500">{label as string}</p>
+                  <div key={label as string} className="rounded-md border border-slate-200 dark:border-slate-700 px-3 py-2">
+                    <p className="text-xl font-semibold tabular-nums text-slate-900 dark:text-slate-100">{value as number}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">{label as string}</p>
                   </div>
                 ))}
               </div>
 
-              <div className="overflow-x-auto rounded-md border border-slate-200">
+              <div className="overflow-x-auto rounded-md border border-slate-200 dark:border-slate-700">
                 <table className="w-full text-sm">
-                  <thead className="bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                  <thead className="bg-slate-50 dark:bg-slate-950 text-xs uppercase tracking-wide text-slate-500 dark:text-slate-400">
                     <tr>
                       {['Channel', 'Category', 'Country', 'Platform', 'Audience', 'Fee (USD)', 'Quoted'].map((h) => (
                         <th key={h} className="px-3 py-2 text-left font-semibold">{h}</th>
                       ))}
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100">
+                  <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
                     {mapped.rows.slice(0, 12).map((r, i) => (
                       <tr key={i}>
-                        <td className="max-w-[240px] truncate px-3 py-2 text-blue-700" title={r.channel_link}>
+                        <td className="max-w-[240px] truncate px-3 py-2 text-blue-700 dark:text-blue-400" title={r.channel_link}>
                           {r.channel_link.replace(/^https?:\/\//, '')}
                         </td>
-                        <td className="px-3 py-2 text-slate-600">{r.category.join(', ') || '—'}</td>
-                        <td className="px-3 py-2 text-slate-600">{r.country ?? '—'}</td>
-                        <td className="px-3 py-2 text-slate-600">{r.platform ?? '—'}</td>
-                        <td className="px-3 py-2 tabular-nums text-slate-600">
+                        <td className="px-3 py-2 text-slate-600 dark:text-slate-300">{r.category.join(', ') || '—'}</td>
+                        <td className="px-3 py-2 text-slate-600 dark:text-slate-300">{r.country ?? '—'}</td>
+                        <td className="px-3 py-2 text-slate-600 dark:text-slate-300">{r.platform ?? '—'}</td>
+                        <td className="px-3 py-2 tabular-nums text-slate-600 dark:text-slate-300">
                           {(r.followers ?? r.subscribers)?.toLocaleString() ?? '—'}
                         </td>
-                        <td className="px-3 py-2 tabular-nums text-slate-900">
+                        <td className="px-3 py-2 tabular-nums text-slate-900 dark:text-slate-100">
                           {formatMoney(r.commercials_amount, 'USD')}
                         </td>
-                        <td className="px-3 py-2 text-xs text-slate-500">
+                        <td className="px-3 py-2 text-xs text-slate-500 dark:text-slate-400">
                           {r.commercials_currency_native && r.commercials_currency_native !== 'USD'
                             ? formatMoney(r.commercials_amount_native, r.commercials_currency_native)
                             : '—'}
@@ -275,20 +275,20 @@ export function UploadModal({ onClose, onUploaded }: Props) {
                 </table>
               </div>
               {mapped.rows.length > 12 && (
-                <p className="text-xs text-slate-500">
+                <p className="text-xs text-slate-500 dark:text-slate-400">
                   Showing the first 12 of {mapped.rows.length.toLocaleString()} rows.
                 </p>
               )}
 
               {progress && (
                 <div>
-                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-200">
+                  <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800">
                     <div
-                      className="h-full bg-slate-900 transition-all"
+                      className="h-full bg-slate-900 dark:bg-slate-100 transition-all"
                       style={{ width: `${(progress.done / progress.total) * 100}%` }}
                     />
                   </div>
-                  <p className="mt-1 text-xs text-slate-500">
+                  <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
                     Upserting {progress.done.toLocaleString()} of {progress.total.toLocaleString()}...
                   </p>
                 </div>
@@ -298,19 +298,19 @@ export function UploadModal({ onClose, onUploaded }: Props) {
 
           {step === 'done' && summary && (
             <div className="py-8 text-center">
-              <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-green-50 text-xl text-green-600">
+              <div className="mx-auto mb-3 flex h-11 w-11 items-center justify-center rounded-full bg-green-50 dark:bg-green-950 text-xl text-green-600 dark:text-green-400">
                 ✓
               </div>
-              <p className="font-medium text-slate-900">Upload complete</p>
+              <p className="font-medium text-slate-900 dark:text-slate-100">Upload complete</p>
               <div className="mt-4 flex justify-center gap-3">
                 {[
                   ['New creators added', summary.inserted],
                   ['Existing creators updated', summary.updated],
                   ['Total processed', summary.total],
                 ].map(([label, value]) => (
-                  <div key={label as string} className="rounded-md border border-slate-200 px-4 py-3">
-                    <p className="text-2xl font-semibold tabular-nums text-slate-900">{value as number}</p>
-                    <p className="text-xs text-slate-500">{label as string}</p>
+                  <div key={label as string} className="rounded-md border border-slate-200 dark:border-slate-700 px-4 py-3">
+                    <p className="text-2xl font-semibold tabular-nums text-slate-900 dark:text-slate-100">{value as number}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">{label as string}</p>
                   </div>
                 ))}
               </div>
@@ -318,14 +318,14 @@ export function UploadModal({ onClose, onUploaded }: Props) {
           )}
         </div>
 
-        <footer className="flex items-center justify-between border-t border-slate-200 px-5 py-3">
+        <footer className="flex items-center justify-between border-t border-slate-200 dark:border-slate-700 px-5 py-3">
           <button
             onClick={() => {
               if (step === 'preview') setStep('map')
               else if (step === 'map') setStep('pick')
               else onClose()
             }}
-            className="rounded-md px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-100"
+            className="rounded-md px-3 py-1.5 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800"
           >
             {step === 'pick' || step === 'done' ? 'Close' : 'Back'}
           </button>
@@ -334,7 +334,7 @@ export function UploadModal({ onClose, onUploaded }: Props) {
             <button
               onClick={buildPreview}
               disabled={busy || !linkColumnChosen}
-              className="rounded-md bg-slate-900 px-4 py-1.5 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-40"
+              className="rounded-md bg-slate-900 dark:bg-slate-100 px-4 py-1.5 text-sm font-medium text-white dark:text-slate-900 hover:bg-slate-700 dark:hover:bg-white disabled:opacity-40"
             >
               {busy ? 'Mapping...' : 'Preview'}
             </button>
@@ -344,7 +344,7 @@ export function UploadModal({ onClose, onUploaded }: Props) {
             <button
               onClick={commit}
               disabled={busy || !canWrite}
-              className="rounded-md bg-slate-900 px-4 py-1.5 text-sm font-medium text-white hover:bg-slate-700 disabled:opacity-40"
+              className="rounded-md bg-slate-900 dark:bg-slate-100 px-4 py-1.5 text-sm font-medium text-white dark:text-slate-900 hover:bg-slate-700 dark:hover:bg-white disabled:opacity-40"
               title={canWrite ? undefined : 'Service role key required'}
             >
               {busy ? 'Uploading...' : `Upsert ${mapped?.rows.length.toLocaleString()} rows`}
@@ -354,7 +354,7 @@ export function UploadModal({ onClose, onUploaded }: Props) {
           {step === 'done' && (
             <button
               onClick={onClose}
-              className="rounded-md bg-slate-900 px-4 py-1.5 text-sm font-medium text-white hover:bg-slate-700"
+              className="rounded-md bg-slate-900 dark:bg-slate-100 px-4 py-1.5 text-sm font-medium text-white dark:text-slate-900 hover:bg-slate-700 dark:hover:bg-white"
             >
               Done
             </button>

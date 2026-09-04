@@ -50,7 +50,7 @@ export function ResultsTable({
           hasFilters ? (
             <button
               onClick={onClearFilters}
-              className="rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700"
+              className="rounded-md bg-slate-900 dark:bg-slate-100 px-4 py-2 text-sm font-medium text-white dark:text-slate-900 hover:bg-slate-700 dark:hover:bg-white"
             >
               Clear filters
             </button>
@@ -63,20 +63,20 @@ export function ResultsTable({
   return (
     <div className="overflow-x-auto">
       <table className="w-full border-collapse text-sm">
-        <thead className="sticky top-0 z-10 bg-slate-50">
-          <tr className="border-b border-slate-200">
+        <thead className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-950">
+          <tr className="border-b border-slate-200 dark:border-slate-700">
             {COLUMNS.map((col) => (
               <th
                 key={col.label}
-                className={`px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 ${col.className ?? ''}`}
+                className={`px-4 py-2.5 text-left text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400 ${col.className ?? ''}`}
               >
                 {col.key ? (
                   <button
                     onClick={() => onSort(col.key!)}
-                    className="inline-flex items-center gap-1 hover:text-slate-900"
+                    className="inline-flex items-center gap-1 hover:text-slate-900 dark:hover:text-slate-100"
                   >
                     {col.label}
-                    <span className={sortKey === col.key ? 'text-slate-900' : 'text-slate-300'}>
+                    <span className={sortKey === col.key ? 'text-slate-900 dark:text-slate-100' : 'text-slate-300 dark:text-slate-600'}>
                       {sortKey === col.key ? (sortAsc ? '↑' : '↓') : '↕'}
                     </span>
                   </button>
@@ -87,18 +87,18 @@ export function ResultsTable({
             ))}
           </tr>
         </thead>
-        <tbody className="divide-y divide-slate-100">
+        <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
           {rows.map((row) => {
             const audience = row.followers ?? row.subscribers
             const audienceLabel = row.followers !== null ? 'followers' : row.subscribers !== null ? 'subs' : ''
             return (
-              <tr key={row.id} className="hover:bg-slate-50">
+              <tr key={row.id} className="hover:bg-slate-50 dark:hover:bg-slate-800/60">
                 <td className="px-4 py-2.5">
                   <a
                     href={row.channel_link}
                     target="_blank"
                     rel="noreferrer noopener"
-                    className="font-medium text-blue-700 hover:underline"
+                    className="font-medium text-blue-700 dark:text-blue-400 hover:underline"
                     title={row.channel_link}
                   >
                     {row.creator_name ?? displayLink(row.channel_link)}
@@ -110,7 +110,7 @@ export function ResultsTable({
                 <td className="px-4 py-2.5">
                   <div className="flex flex-wrap gap-1">
                     {(row.category ?? []).slice(0, 3).map((c) => (
-                      <span key={c} className="rounded bg-slate-100 px-1.5 py-0.5 text-xs text-slate-700">
+                      <span key={c} className="rounded bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 text-xs text-slate-700 dark:text-slate-300">
                         {c}
                       </span>
                     ))}
@@ -124,16 +124,16 @@ export function ResultsTable({
                     )}
                   </div>
                 </td>
-                <td className="whitespace-nowrap px-4 py-2.5 text-slate-700">{row.country ?? '—'}</td>
-                <td className="whitespace-nowrap px-4 py-2.5 text-slate-700">{row.platform ?? '—'}</td>
-                <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums text-slate-900">
+                <td className="whitespace-nowrap px-4 py-2.5 text-slate-700 dark:text-slate-300">{row.country ?? '—'}</td>
+                <td className="whitespace-nowrap px-4 py-2.5 text-slate-700 dark:text-slate-300">{row.platform ?? '—'}</td>
+                <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums text-slate-900 dark:text-slate-100">
                   {formatNumber(audience)}
                   {audienceLabel && <span className="ml-1 text-xs text-slate-400">{audienceLabel}</span>}
                 </td>
-                <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums font-medium text-slate-900">
+                <td className="whitespace-nowrap px-4 py-2.5 text-right tabular-nums font-medium text-slate-900 dark:text-slate-100">
                   {formatMoney(row.commercials_amount, 'USD')}
                 </td>
-                <td className="px-4 py-2.5 text-xs text-slate-500" title={row.commercials ?? ''}>
+                <td className="px-4 py-2.5 text-xs text-slate-500 dark:text-slate-400" title={row.commercials ?? ''}>
                   {row.commercials_currency_native &&
                   row.commercials_currency_native !== 'USD' ? (
                     <span className="whitespace-nowrap">
@@ -146,7 +146,7 @@ export function ResultsTable({
                     <span className="line-clamp-2">{row.commercials ?? '—'}</span>
                   )}
                 </td>
-                <td className="px-4 py-2.5 text-xs text-slate-500" title={row.deliverables ?? ''}>
+                <td className="px-4 py-2.5 text-xs text-slate-500 dark:text-slate-400" title={row.deliverables ?? ''}>
                   <span className="line-clamp-2">{row.deliverables ?? '—'}</span>
                 </td>
               </tr>

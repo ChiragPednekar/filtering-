@@ -6,6 +6,8 @@ html, body, #root { height: 100%; }
 
 body {
   margin: 0;
+  background: #f8fafc;
+  color: #0f172a;
   font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
@@ -16,4 +18,26 @@ body {
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+/* Painted before Tailwind's utilities, so the shell matches the theme from the
+   first frame instead of flashing light. */
+.dark body {
+  background: #020617;
+  color: #e2e8f0;
+}
+
+/* Text inputs and selects carry no background class of their own, so in dark mode
+   they would fall back to the browser's default grey and fail contrast. */
+.dark input:not([type='checkbox']):not([type='radio']),
+.dark select,
+.dark textarea {
+  background-color: #1e293b;
+  color: #e2e8f0;
+  border-color: #334155;
+}
+
+.dark input::placeholder,
+.dark textarea::placeholder {
+  color: #64748b;
 }

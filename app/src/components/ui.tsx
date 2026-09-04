@@ -2,12 +2,12 @@ import { useState, type ReactNode } from 'react'
 
 /** Grey block used while a query is in flight. */
 export function Skeleton({ className = '' }: { className?: string }) {
-  return <div className={`animate-pulse rounded bg-slate-200 ${className}`} />
+  return <div className={`animate-pulse rounded bg-slate-200 dark:bg-slate-800 ${className}`} />
 }
 
 export function TableSkeleton({ rows = 8, cols = 7 }: { rows?: number; cols?: number }) {
   return (
-    <div className="divide-y divide-slate-100">
+    <div className="divide-y divide-slate-100 dark:divide-slate-800">
       {Array.from({ length: rows }).map((_, r) => (
         <div key={r} className="flex items-center gap-4 px-4 py-3">
           {Array.from({ length: cols }).map((_, c) => (
@@ -43,17 +43,17 @@ export function ErrorState({
 }) {
   return (
     <div className="flex flex-col items-center justify-center gap-3 px-6 py-14 text-center">
-      <div className="flex h-11 w-11 items-center justify-center rounded-full bg-red-50 text-xl text-red-600">
+      <div className="flex h-11 w-11 items-center justify-center rounded-full bg-red-50 dark:bg-red-950 text-xl text-red-600 dark:text-red-400">
         !
       </div>
       <div>
-        <p className="font-medium text-slate-900">{title}</p>
-        <p className="mx-auto mt-1 max-w-md text-sm text-slate-600">{message}</p>
+        <p className="font-medium text-slate-900 dark:text-slate-100">{title}</p>
+        <p className="mx-auto mt-1 max-w-md text-sm text-slate-600 dark:text-slate-300">{message}</p>
       </div>
       {onRetry && (
         <button
           onClick={onRetry}
-          className="mt-1 rounded-md bg-slate-900 px-4 py-2 text-sm font-medium text-white hover:bg-slate-700"
+          className="mt-1 rounded-md bg-slate-900 dark:bg-slate-100 px-4 py-2 text-sm font-medium text-white dark:text-slate-900 hover:bg-slate-700 dark:hover:bg-white"
         >
           Retry
         </button>
@@ -65,8 +65,8 @@ export function ErrorState({
 export function EmptyState({ title, message, action }: { title: string; message: string; action?: ReactNode }) {
   return (
     <div className="flex flex-col items-center justify-center gap-3 px-6 py-16 text-center">
-      <p className="font-medium text-slate-900">{title}</p>
-      <p className="max-w-md text-sm text-slate-600">{message}</p>
+      <p className="font-medium text-slate-900 dark:text-slate-100">{title}</p>
+      <p className="max-w-md text-sm text-slate-600 dark:text-slate-300">{message}</p>
       {action}
     </div>
   )
@@ -75,7 +75,7 @@ export function EmptyState({ title, message, action }: { title: string; message:
 export function Field({ label, children, hint }: { label: string; children: ReactNode; hint?: string }) {
   return (
     <div>
-      <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+      <label className="mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
         {label}
       </label>
       {children}
@@ -134,26 +134,26 @@ export function MultiSelect({
 
   if (!opts.length) {
     return (
-      <p className="rounded-md border border-dashed border-slate-200 px-3 py-2 text-xs text-slate-400">
+      <p className="rounded-md border border-dashed border-slate-200 dark:border-slate-700 px-3 py-2 text-xs text-slate-400">
         No values yet
       </p>
     )
   }
 
   return (
-    <div className="rounded-md border border-slate-200 bg-white">
+    <div className="rounded-md border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900">
       {opts.length > 8 && (
         <input
           type="search"
           value={term}
           placeholder={placeholder}
           onChange={(e) => setTerm(e.target.value)}
-          className="w-full rounded-t-md border-b border-slate-200 px-3 py-2 text-sm outline-none placeholder:text-slate-400 focus:bg-slate-50"
+          className="w-full rounded-t-md border-b border-slate-200 dark:border-slate-700 px-3 py-2 text-sm outline-none placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:bg-slate-50 dark:focus:bg-slate-800"
         />
       )}
 
-      <div className="flex items-center justify-between border-b border-slate-100 px-2 py-1">
-        <label className="flex cursor-pointer items-center gap-2 text-xs font-medium text-slate-600">
+      <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 px-2 py-1">
+        <label className="flex cursor-pointer items-center gap-2 text-xs font-medium text-slate-600 dark:text-slate-300">
           <input
             type="checkbox"
             checked={allVisibleSelected}
@@ -165,7 +165,7 @@ export function MultiSelect({
               }
             }}
             onChange={() => (allVisibleSelected ? clearVisible() : selectAllVisible())}
-            className="h-3.5 w-3.5 rounded border-slate-300 accent-slate-900"
+            className="h-3.5 w-3.5 rounded border-slate-300 dark:border-slate-600 accent-slate-900 dark:accent-slate-300"
           />
           {allVisibleSelected ? 'Deselect all' : 'Select all'}
           {term && <span className="text-slate-400">({visible.length} shown)</span>}
@@ -182,15 +182,15 @@ export function MultiSelect({
           visible.map((opt) => (
             <label
               key={opt.value}
-              className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-slate-50"
+              className="flex cursor-pointer items-center gap-2 rounded px-2 py-1.5 text-sm hover:bg-slate-50 dark:hover:bg-slate-800/60"
             >
               <input
                 type="checkbox"
                 checked={selected.includes(opt.value)}
                 onChange={() => toggle(opt.value)}
-                className="h-3.5 w-3.5 rounded border-slate-300 accent-slate-900"
+                className="h-3.5 w-3.5 rounded border-slate-300 dark:border-slate-600 accent-slate-900 dark:accent-slate-300"
               />
-              <span className="min-w-0 flex-1 truncate text-slate-700" title={opt.label}>
+              <span className="min-w-0 flex-1 truncate text-slate-700 dark:text-slate-300" title={opt.label}>
                 {opt.label}
               </span>
               {opt.count !== undefined && (
@@ -202,9 +202,9 @@ export function MultiSelect({
       </div>
 
       {selected.length > 0 && (
-        <div className="flex items-center justify-between border-t border-slate-100 px-3 py-1.5">
-          <span className="text-xs text-slate-500">{selected.length} selected</span>
-          <button onClick={() => onChange([])} className="text-xs text-slate-500 underline hover:text-slate-900">
+        <div className="flex items-center justify-between border-t border-slate-100 dark:border-slate-800 px-3 py-1.5">
+          <span className="text-xs text-slate-500 dark:text-slate-400">{selected.length} selected</span>
+          <button onClick={() => onChange([])} className="text-xs text-slate-500 dark:text-slate-400 underline hover:text-slate-900 dark:hover:text-slate-100">
             clear all
           </button>
         </div>
@@ -233,7 +233,7 @@ export function RangeInput({
         placeholder={`min ${bounds.min.toLocaleString()}`}
         value={value.min ?? ''}
         onChange={(e) => onChange({ ...value, min: parse(e.target.value) })}
-        className="w-full rounded-md border border-slate-200 px-2.5 py-1.5 text-sm outline-none focus:border-slate-400"
+        className="w-full rounded-md border border-slate-200 dark:border-slate-700 px-2.5 py-1.5 text-sm outline-none focus:border-slate-400 dark:focus:border-slate-500"
       />
       <span className="text-xs text-slate-400">to</span>
       <input
@@ -242,7 +242,7 @@ export function RangeInput({
         placeholder={`max ${bounds.max.toLocaleString()}`}
         value={value.max ?? ''}
         onChange={(e) => onChange({ ...value, max: parse(e.target.value) })}
-        className="w-full rounded-md border border-slate-200 px-2.5 py-1.5 text-sm outline-none focus:border-slate-400"
+        className="w-full rounded-md border border-slate-200 dark:border-slate-700 px-2.5 py-1.5 text-sm outline-none focus:border-slate-400 dark:focus:border-slate-500"
       />
     </div>
   )

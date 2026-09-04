@@ -10,6 +10,7 @@ const UploadModal = lazy(() =>
   import('./components/UploadModal').then((m) => ({ default: m.UploadModal })),
 )
 import { useCreators } from './hooks/useCreators'
+import { useTheme, type Theme } from './hooks/useTheme'
 import { useFilterOptions } from './hooks/useFilterOptions'
 import { canSync, canWrite, configError, runSheetSync } from './lib/supabaseClient'
 import { fetchAllForExport, type SortKey } from './services/creatorsService'
@@ -40,6 +41,7 @@ export default function App() {
   const [syncNote, setSyncNote] = useState<string | null>(null)
   const [exporting, setExporting] = useState<null | 'csv' | 'pdf'>(null)
 
+  const { theme, setTheme } = useTheme()
   const options = useFilterOptions()
   const { rows, total, loading, error, reload } = useCreators({
     filters, page, pageSize, sortKey, sortAsc,
@@ -135,8 +137,8 @@ export default function App() {
 
   if (configError) {
     return (
-      <div className="flex h-screen items-center justify-center bg-slate-50">
-        <div className="max-w-lg rounded-lg border border-slate-200 bg-white p-6">
+      <div className="flex h-screen items-center justify-center bg-slate-50 dark:bg-slate-950">
+        <div className="max-w-lg rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 p-6">
           <ErrorState
             title="Supabase is not configured"
             message={`${configError} Locally: copy .env.example to .env and restart. "
@@ -149,14 +151,14 @@ export default function App() {
   }
 
   return (
-    <div className="flex h-screen flex-col bg-slate-50 text-slate-900">
-      <header className="flex items-center justify-between border-b border-slate-200 bg-white px-5 py-3">
+    <div className="flex h-screen flex-col bg-slate-50 dark:bg-slate-950 text-slate-900 dark:text-slate-100">
+      <header className="flex items-center justify-between border-b border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 px-5 py-3">
         <div className="flex items-baseline gap-3">
           <h1 className="text-base font-semibold">Creators Explorer</h1>
-          <span className="text-sm text-slate-500">
+          <span className="text-sm text-slate-500 dark:text-slate-400">
             {loading ? 'Searching…' : (
               <>
-                <span className="font-medium text-slate-900 tabular-nums">{total.toLocaleString()}</span>
+                <span className="font-medium text-slate-900 dark:text-slate-100 tabular-nums">{total.toLocaleString()}</span>
                 {' matching'}
                 {options.options.total_rows > 0 && (
                   <span className="text-slate-400">
@@ -168,9 +170,9 @@ export default function App() {
           </span>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center justify-end gap-2">
           {syncNote && (
-            <span className="rounded bg-slate-100 px-2 py-1 text-xs text-slate-600">
+            <span className="rounded bg-slate-100 dark:bg-slate-800 px-2 py-1 text-xs text-slate-600 dark:text-slate-300">
               {syncNote}
             </span>
           )}
@@ -179,16 +181,42 @@ export default function App() {
               onClick={() => void handleSync()}
               disabled={syncing}
               title="Pull the Google Sheet now. It also syncs automatically on edit."
-              className="rounded-md border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-50"
+              className="rounded-md border border-slate-200 dark:border-slate-700 px-3 py-1.5 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50"
             >
               {syncing ? 'Syncing…' : 'Sync now'}
             </button>
           )}
+          <div
+            role="group"
+            aria-label="Colour theme"
+            className="flex items-center rounded-md border border-slate-200 dark:border-slate-700 p-0.5 dark:border-slate-700"
+          >
+            {([
+              ['light', 'Light', '\u2600'],
+              ['dark', 'Dark', '\u263D'],
+              ['system', 'System', '\u25D0'],
+            ] as [Theme, string, string][]).map(([value, label, glyph]) => (
+              <button
+                key={value}
+                onClick={() => setTheme(value)}
+                title={`${label} theme`}
+                aria-pressed={theme === value}
+                className={`rounded px-1.5 py-0.5 text-xs leading-none ${
+                  theme === value
+                    ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 dark:bg-slate-100 dark:text-slate-900'
+                    : 'text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-800'
+                }`}
+              >
+                <span aria-hidden="true">{glyph}</span>
+                <span className="sr-only">{label}</span>
+              </button>
+            ))}
+          </div>
           <button
             onClick={() => void handleExport('csv')}
             disabled={exporting !== null || loading || total === 0}
             title="Download every row matching the current filters as CSV"
-            className="rounded-md border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-50"
+            className="rounded-md border border-slate-200 dark:border-slate-700 px-3 py-1.5 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50"
           >
             {exporting === 'csv' ? 'Preparing\u2026' : `Download CSV${total ? ` (${total.toLocaleString()})` : ''}`}
           </button>
@@ -196,18 +224,18 @@ export default function App() {
             onClick={() => void handleExport('pdf')}
             disabled={exporting !== null || loading || total === 0}
             title="Open a printable view of the filtered list, then choose Save as PDF"
-            className="rounded-md border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-700 hover:bg-slate-100 disabled:opacity-50"
+            className="rounded-md border border-slate-200 dark:border-slate-700 px-3 py-1.5 text-sm font-medium text-slate-700 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:opacity-50"
           >
             {exporting === 'pdf' ? 'Preparing\u2026' : 'PDF'}
           </button>
           {!canWrite && (
-            <span className="rounded bg-amber-50 px-2 py-1 text-xs text-amber-800" title="Set VITE_SUPABASE_SERVICE_ROLE_KEY to enable uploads">
+            <span className="rounded bg-amber-50 dark:bg-amber-950 px-2 py-1 text-xs text-amber-800 dark:text-amber-300" title="Set VITE_SUPABASE_SERVICE_ROLE_KEY to enable uploads">
               read-only
             </span>
           )}
           <button
             onClick={() => setUploadOpen(true)}
-            className="rounded-md bg-slate-900 px-3.5 py-1.5 text-sm font-medium text-white hover:bg-slate-700"
+            className="rounded-md bg-slate-900 dark:bg-slate-100 px-3.5 py-1.5 text-sm font-medium text-white dark:text-slate-900 hover:bg-slate-700 dark:hover:bg-white"
           >
             Upload sheet
           </button>
@@ -236,7 +264,7 @@ export default function App() {
             />
           ) : (
             <>
-              <div className="min-h-0 flex-1 overflow-auto bg-white">
+              <div className="min-h-0 flex-1 overflow-auto bg-white dark:bg-slate-900">
                 <ResultsTable
                   rows={rows}
                   loading={loading}

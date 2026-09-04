@@ -151,6 +151,24 @@ dropdown shows the most common spelling with a row count, ordered by frequency. 
 `Any of` matches rows having at least one selected category (`overlaps`); `All of`
 requires every one (`contains`).
 
+## Dark mode
+
+Three-way toggle in the header: **Light / Dark / System**. System follows the OS and
+keeps following it if the OS setting changes while the app is open. The choice is
+remembered per browser in `localStorage`, wrapped in try/catch so a private window or
+blocked site data falls back to System rather than throwing.
+
+Tailwind runs in `darkMode: 'class'`, and an inline script in `index.html` sets the
+class before React boots — otherwise a dark-mode user gets a white flash on every load.
+
+Two things worth knowing if you add UI:
+
+- Pair every colour utility with a `dark:` variant. Contrast was measured, not eyeballed:
+  everything except the idle sort indicator clears WCAG AA in dark mode, and that one is
+  deliberately dim (it is the `slate-300` idle affordance, and brightens when active).
+- Text inputs and selects carry no background class, so in dark mode they would fall
+  back to the browser's grey default. `index.css` styles them explicitly.
+
 ## Known behaviour
 
 - Results are capped at 5,000 rows for CSV export, paged 1,000 at a time.

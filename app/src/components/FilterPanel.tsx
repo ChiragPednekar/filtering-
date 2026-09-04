@@ -14,13 +14,13 @@ export function FilterPanel({ filters, options, loading, activeCount, onChange, 
   const { ranges } = options
 
   return (
-    <aside className="flex h-full w-80 shrink-0 flex-col border-r border-slate-200 bg-white">
-      <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3">
-        <h2 className="text-sm font-semibold text-slate-900">Filters</h2>
+    <aside className="flex h-full w-80 shrink-0 flex-col border-r border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900">
+      <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-700 px-4 py-3">
+        <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Filters</h2>
         <button
           onClick={onClear}
           disabled={activeCount === 0}
-          className="rounded-md px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
+          className="rounded-md px-2 py-1 text-xs font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40"
         >
           Clear{activeCount > 0 ? ` (${activeCount})` : ''}
         </button>
@@ -37,7 +37,7 @@ export function FilterPanel({ filters, options, loading, activeCount, onChange, 
                 value={filters.search}
                 onChange={(e) => onChange({ search: e.target.value })}
                 placeholder="Search creators by name..."
-                className="w-full rounded-md border border-slate-200 px-3 py-2 text-sm outline-none placeholder:text-slate-400 focus:border-slate-400"
+                className="w-full rounded-md border border-slate-200 dark:border-slate-700 px-3 py-2 text-sm outline-none placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:border-slate-400 dark:focus:border-slate-500"
               />
             </Field>
 
@@ -52,8 +52,8 @@ export function FilterPanel({ filters, options, loading, activeCount, onChange, 
                     onClick={() => onChange({ categoryMode: mode })}
                     className={`rounded px-2 py-0.5 text-xs font-medium ${
                       filters.categoryMode === mode
-                        ? 'bg-slate-900 text-white'
-                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                        ? 'bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900'
+                        : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
                     }`}
                   >
                     {mode === 'any' ? 'Any of' : 'All of'}
@@ -121,12 +121,12 @@ export function FilterPanel({ filters, options, loading, activeCount, onChange, 
                 onChange={(commercialsAmount) => onChange({ commercialsAmount })}
                 bounds={ranges.commercials_amount}
               />
-              <label className="mt-2 flex cursor-pointer items-center gap-2 text-xs text-slate-600">
+              <label className="mt-2 flex cursor-pointer items-center gap-2 text-xs text-slate-600 dark:text-slate-300">
                 <input
                   type="checkbox"
                   checked={filters.onlyWithFee}
                   onChange={(e) => onChange({ onlyWithFee: e.target.checked })}
-                  className="h-3.5 w-3.5 rounded border-slate-300 accent-slate-900"
+                  className="h-3.5 w-3.5 rounded border-slate-300 dark:border-slate-600 accent-slate-900 dark:accent-slate-300"
                 />
                 Only rows with a parsed fee
               </label>
